@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mix Bar Tutorial</title>
+<link rel="stylesheet" href="tutorial.css">
+</head>
+<body>
+<div class="wrap">
+  <h1>Tutorial: an X/Y mix bar</h1>
+  <p class="sub">Build a 19 × 13 two-way bar. The middle means an even mix; the fill grows toward <b>X</b> as the value goes down and toward <b>Y</b> as it goes up. It's modelled on an FM synth's <b>MIX</b>. About 10 minutes. You'll learn corner-to-corner rectangles, single pixels, fills, and putting keys exactly where the timing needs them.</p>
+  <p class="tip">Inspired by the Elektron DN's screens. Not affiliated with Elektron.</p>
+
+  <div class="card hero">
+    <figure><canvas id="heroOurs" class="pix"></canvas><figcaption>what you'll build</figcaption></figure>
+    <figure id="heroRefFig" hidden><canvas id="heroRef" class="pix"></canvas><figcaption>the DN (reference)</figcaption></figure>
+    <div style="flex:1;min-width:200px">
+      <div style="color:var(--dim);font-size:12px">value <b id="heroV" style="color:var(--text)">0</b></div>
+      <input type="range" id="heroS" min="0" max="127" value="0" style="width:100%">
+    </div>
+  </div>
+
+  <h2><span class="n">0</span> Look before you draw</h2>
+  <p>Sweep the slider above. Two kinds of parts:</p>
+  <div class="parts" style="grid-template-columns:1fr 1fr">
+    <div class="card"><figure><canvas id="partStatic" class="pix"></canvas></figure><b>Never moves</b><br><span style="color:var(--dim)">The X and Y letters, the rounded track, and two centre ticks → <b>linked</b> objects.</span></div>
+    <div class="card"><figure><canvas id="partFill" class="pix"></canvas></figure><b>The fill</b><br><span style="color:var(--dim)">One filled rectangle. One edge stays on the centre column; the other moves → one <b>unlinked</b> object, edited per key.</span></div>
+  </div>
+  <p>There are 15 different pictures in all: the fill moves one pixel every 9 values or so, 7 steps each way from the middle.</p>
+  <div id="refFilm" hidden>
+    <h3>The reference, every 8th value</h3>
+    <div class="film" id="refFilmBox"></div>
+  </div>
+  <p class="tip">Each step's picture shows what you should have <b>after</b> the step. <b>Load this result</b> puts that into the editor, to catch up or skip ahead.</p>
+
+  <h2 data-step="1"><span class="n">1</span> Set up the cell</h2>
+  <div class="card step"><div>
+    <ol>
+      <li>In the editor (title <b>v9</b> or later), click <b class="ui">New</b>.</li>
+      <li>Set <b class="ui">Cell</b> to <code>19</code> × <code>13</code>.</li>
+      <li>Set <b class="ui">Frames</b> to <code>128</code>, one per value. Step 8 explains why, and what fewer frames cost you. You can change it at any time; the drawing stays the same.</li>
+    </ol>
+  </div><figure><canvas data-stage="0" class="pix"></canvas><figcaption>empty 19 × 13</figcaption><p><button class="btn" data-open="0">Load this result</button></p></figure></div>
+
+  <h2 data-step="2"><span class="n">2</span> Keys: both ends and <em>two</em> in the middle</h2>
+  <div class="card step"><div>
+    <p>You have <code>0</code> and <code>127</code>. Add <code>63</code> and <code>64</code>: click key 0, <b class="ui">+ Key</b>, type the value, <kbd>Enter</kbd>.</p>
+    <p><b>Why two middle keys?</b> The middle picture (just the centre line) should hold from 59 to 68, and each side should take exactly 9 values per pixel:</p>
+    <ul>
+      <li>Toward X, the fill shrinks from key <code>0</code> to <code>63</code>.</li>
+      <li>Toward Y, it grows from <code>64</code> to <code>127</code>.</li>
+    </ul>
+    <p>With a single middle key at 64, the X side is half a value late: 3 values come out wrong.</p>
+  </div><figure><canvas data-stage="1" class="pix"></canvas><figcaption>keys 0 63 64 127</figcaption><p><button class="btn" data-open="1">Load this result</button></p></figure></div>
+
+  <h2 data-step="3"><span class="n">3</span> The letters (linked lines)</h2>
+  <div class="card step"><div>
+    <ol>
+      <li>Keep <b class="ui">New shapes linked</b> ticked. Pick <b class="ui">Line</b> <kbd>2</kbd>.</li>
+      <li><b>X</b>: drag <code>(1,0)</code> → <code>(5,4)</code>, then <code>(5,0)</code> → <code>(1,4)</code>.</li>
+      <li><b>Y</b>: drag <code>(13,0)</code> → <code>(15,2)</code>, then <code>(17,0)</code> → <code>(15,2)</code>, then <code>(15,2)</code> → <code>(15,4)</code>.</li>
+    </ol>
+    <p>Watch the readout under the grid: it shows "from … to …" while you drag. Start and end exactly on the listed pixels; the three Y strokes meet at <code>(15,2)</code>.</p>
+  </div><figure><canvas data-stage="2" class="pix"></canvas><figcaption>5 linked lines</figcaption><p><button class="btn" data-open="2">Load this result</button></p></figure></div>
+
+  <h2 data-step="4"><span class="n">4</span> Two single pixels: the centre ticks</h2>
+  <div class="card step"><div>
+    <ol>
+      <li>Still on <b class="ui">Line</b>: <b>click</b> once on <code>(9,6)</code> and once on <code>(9,12)</code>.</li>
+    </ol>
+    <p>A click with the Line tool makes a one-pixel object. These two mark the centre above and below the track.</p>
+  </div><figure><canvas data-stage="3" class="pix"></canvas><figcaption>+ 2 ticks</figcaption><p><button class="btn" data-open="3">Load this result</button></p></figure></div>
+
+  <h2 data-step="5"><span class="n">5</span> The track: a rectangle from corner to corner</h2>
+  <div class="card step"><div>
+    <ol>
+      <li>Pick <b class="ui">Rect</b> <kbd>5</kbd>. Drag from <code>(1,7)</code> to <code>(17,11)</code>. The rectangle spans your drag's two corners, so the path in between doesn't matter.</li>
+      <li>In <b>Selected object</b>, set <b class="ui">Corners</b> to <code>1</code>. That rounds the ends by cutting each corner pixel.</li>
+    </ol>
+  </div><figure><canvas data-stage="4" class="pix"></canvas><figcaption>+ rounded track</figcaption><p><button class="btn" data-open="4">Load this result</button></p></figure></div>
+
+  <h2 data-step="6"><span class="n">6</span> The fill: draw once, then unlink</h2>
+  <div class="card step"><div>
+    <ol>
+      <li>Tick <b class="ui">New shapes filled</b> (next to New shapes linked).</li>
+      <li>With <b class="ui">Rect</b>, drag <code>(2,8)</code> → <code>(9,10)</code>. That's the X-side fill, on every key for now.</li>
+      <li>In <b>Objects</b>, click the fill's <b class="ui">🔗</b> to unlink it. From now on, edits change only the key you're on.</li>
+    </ol>
+  </div><figure><canvas data-stage="5" class="pix" data-v="0"></canvas><figcaption>fill on every key</figcaption><p><button class="btn" data-open="5">Load this result</button></p></figure></div>
+
+  <h2 data-step="7"><span class="n">7</span> Move the fill's edge on each key</h2>
+  <div class="card step"><div>
+    <ol>
+      <li>Pick <b class="ui">Edit</b> <kbd>E</kbd>. Click the fill to see its two orange handles: top-left and bottom-right.</li>
+      <li>Key <code>63</code>: drag the top-left handle from <code>(2,8)</code> to <code>(9,8)</code>. Only the centre column is left.</li>
+      <li>Key <code>64</code>: the same.</li>
+      <li>Key <code>127</code>: drag the top-left handle <code>(2,8)</code> → <code>(9,8)</code>, then the bottom-right <code>(9,10)</code> → <code>(16,10)</code>.</li>
+      <li>Press <b class="ui">▶ Sweep</b>.</li>
+    </ol>
+    <p class="tip"><b>Why it grows from the centre:</b> between two keys that share an edge (column 9), that edge stays put and only the other one moves. A rectangle whose edges both change slides instead, keeping its width.</p>
+  </div><figure><canvas data-stage="6" class="pix" data-v="100"></canvas><figcaption>value 100</figcaption><p><button class="btn primary" data-open="6">Load the finished sketch</button></p></figure></div>
+
+  <h2 data-step="8"><span class="n">8</span> Pick a frame count</h2>
+  <p>The editor shows 15 different pictures, but how many <b>frames</b> you store decides the timing and the memory. Same drawing, four frame counts:</p>
+  <table class="t">
+    <tr><th>Frames</th><th>Memory</th><th>The picture can change</th></tr>
+    <tr><td>128</td><td>4992 B</td><td>at every value</td></tr>
+    <tr><td>64</td><td>2496 B</td><td>every 2 values</td></tr>
+    <tr><td>32</td><td>1248 B</td><td>every 4 values</td></tr>
+    <tr class="best"><td>16</td><td>624 B</td><td>every 8 values</td></tr>
+  </table>
+  <p>Fewer frames means the picture changes on a coarser grid of values: with 16 frames, a change you keyed at value 5 shows up at 8. The pictures are all the same; only <b>when</b> they change moves, by a few values.</p>
+  <p class="tip warn"><b>128 frames is wasteful:</b> it stores 15 pictures over and over. A better format would store the 15 pictures plus a small value → picture table: about 585 + 128 bytes, and still exact. rmpUI's frames element can't do that yet. Worth adding if your controls are tight on memory; for now, 16 frames is a fine trade.</p>
+
+  <h2 data-step="9"><span class="n">9</span> Put it on the Rytm screen</h2>
+  <ol>
+    <li>In the editor, set <b class="ui">Name</b> to <code>mix</code>, then click <b class="ui">Copy JSON</b>.</li>
+    <li>Paste it into your layout's <code>"bitmaps"</code>.</li>
+    <li>Add the element, driven by your mix param, for example here on the first page:</li>
+  </ol>
+  <pre>{ "type": "frames", "bmp": "mix", "p": 8, "x": 105, "y": 42 }</pre>
+  <p>Use your own param number for <code>"p"</code>.</p>
+
+  <h2><span class="n">✓</span> What you used</h2>
+  <ul>
+    <li><b>Rect by corner-to-corner drag</b>, <b>Corners</b> for rounded ends, and <b>filled</b>.</li>
+    <li><b>A click with Line</b> for single pixels.</li>
+    <li><b>Draw linked, then unlink</b>: one object that starts the same on every key, then changes per key.</li>
+    <li><b>Edit handles</b> to move just one edge per key; a shared edge stays fixed in the in-betweens.</li>
+    <li><b>Key timing</b>: back-to-back middle keys (63/64) so both sides take the same number of values per step.</li>
+    <li><b>Frame count</b> as a timing-versus-memory choice.</li>
+  </ul>
+</div>
+<script type="module">
+import * as K from "./sketch.js";
+import { setup, paint, clone } from "./tutorial.js";
+
+const LETTERS = [[[1, 0], [5, 4], "X \\"], [[5, 0], [1, 4], "X /"], [[13, 0], [15, 2], "Y left arm"], [[17, 0], [15, 2], "Y right arm"], [[15, 2], [15, 4], "Y stem"]];
+function stage(n) {
+  const keys = n >= 1 ? [0, 63, 64, 127] : [0, 127];
+  const S = { w: 19, h: 13, steps: 128, next: 1, objs: [], keys: keys.map((v) => ({ v, shapes: [] })) };
+  const add = (shape, name, linked, per) => {
+    const id = S.next++; S.objs.push({ id, name, linked, appear: "grow" });
+    for (const k of S.keys) k.shapes.push(Object.assign(clone(per ? per(k.v) : shape), { id }));
+  };
+  if (n >= 2) for (const [a, b, name] of LETTERS) add({ kind: "line", a, b }, name, true);
+  if (n >= 3) { add({ kind: "poly", pts: [[9, 6]], closed: false }, "tick top", true); add({ kind: "poly", pts: [[9, 12]], closed: false }, "tick bottom", true); }
+  if (n >= 4) add({ kind: "rect", x0: 1, y0: 7, x1: 17, y1: 11, rad: 1 }, "track", true);
+  if (n === 5) add({ kind: "rect", x0: 2, y0: 8, x1: 9, y1: 10, rad: 0, fill: 1 }, "fill", true);
+  if (n >= 6) add(null, "fill", false, (v) => ({ kind: "rect", x0: v === 0 ? 2 : 9, y0: 8, x1: v === 127 ? 16 : 9, y1: 10, rad: 0, fill: 1 }));
+  return S;
+}
+const { FINAL } = await setup({ id: "mix", stage, last: 6, ref: "priv/mix_ref.json", scale: 7, heroScale: 9, filmEvery: 8 });
+const draw = (ids, v) => K.draw(K.shapesAt(FINAL, v).filter((s) => ids.includes(s.id)), 19, 13);
+paint(document.getElementById("partStatic"), draw([1, 2, 3, 4, 5, 6, 7, 8], 0), 6, 19, 13);
+paint(document.getElementById("partFill"), draw([8, 9], 100), 6, 19, 13);
+</script>
+</body>
+</html>

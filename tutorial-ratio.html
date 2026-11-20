@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ratio Text Tutorial</title>
+<link rel="stylesheet" href="tutorial.css">
+<style>
+.glyphs { display: flex; gap: 12px; flex-wrap: wrap; margin: 8px 0; }
+.glyphs figure { margin: 0; text-align: center; color: var(--dim); font: 12px ui-monospace, Menlo, monospace; }
+.pairs { display: flex; flex-wrap: wrap; gap: 6px; }
+.pairs figure { margin: 0; text-align: center; color: var(--dim); font-size: 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Tutorial: text with your own font (RATIO B)</h1>
+  <p class="sub">Draw a small digit font, then show two lines of text that one knob drives, like an FM synth's <b>RATIO B</b>. Its knob has 361 detents: the top line picks one of 19 ratios every 19 detents, and the bottom line counts through all 19 in between, like a watch's hands. About 20 minutes. Fonts work the same for letters: step 7.</p>
+  <p class="tip">Inspired by the Elektron DN's screens. Not affiliated with Elektron.</p>
+
+
+  <div class="card hero">
+    <figure><canvas id="heroOurs" class="pix"></canvas><figcaption>what you'll build</figcaption></figure>
+    <div style="flex:1;min-width:200px">
+      <div style="color:var(--dim);font-size:12px">detent <b id="heroV" style="color:var(--text)">0</b> of 360</div>
+      <input type="range" id="heroS" min="0" max="360" value="0" style="width:100%">
+    </div>
+  </div>
+
+  <h2><span class="n">0</span> Why text, not pictures</h2>
+  <p>There are 361 different screens here. As frames that would be 361 pictures: about 7.9 KB, and more than a frames element allows (255). As text it's 11 glyphs (0–9 and ".") and 19 short strings, about 200 bytes. Any number of combinations then costs nothing extra.</p>
+  <p>Two pieces, each with its own page:</p>
+  <ul>
+    <li><b><a href="font.html" target="rmpui-font" style="color:var(--accent)">Font editor</a></b>: draw the glyphs, check that the strings fit.</li>
+    <li><b><a href="layout.html" target="rmpui-layout" style="color:var(--accent)">Layout preview</a></b>: two <code>value</code> elements that use the font, and an <code>index</code> that splits one knob into two lists.</li>
+  </ul>
+  <p class="tip"><b>Load this result</b> puts a step's result into the font editor or the layout preview (they open in their own tabs and pick it up).</p>
+
+  <h2 data-step="1"><span class="n">1</span> A new font</h2>
+  <ol>
+    <li>Open the <a href="font.html" target="rmpui-font" style="color:var(--accent)">font editor</a>. Click <b class="ui">New font…</b> and name it <code>ratio</code>.</li>
+    <li>Set <b class="ui">Height</b> <code>5</code>, <b class="ui">Spacing</b> <code>1</code> (one blank column between characters).</li>
+  </ol>
+
+  <h2 data-step="2"><span class="n">2</span> Draw 0–9 and the point</h2>
+  <div class="card"><div>
+    <ol>
+      <li><b>Type</b> <code>0</code> (outside any text box) to jump to it. Click <b class="ui">+</b> until it's <b>3</b> wide, then paint it. Click or drag to paint; starting on a lit pixel erases.</li>
+      <li>Do the same for <code>1</code> to <code>9</code>, all 3 wide. <b>Copy</b> / <b>Paste</b> saves time: 3 is 2 with a new bottom, and 6 and 9 start from 8. Keep the corners round, like the 0.</li>
+      <li>The <code>.</code> is <b>1</b> wide: a single pixel on the bottom row.</li>
+    </ol>
+    <div class="glyphs" id="glyphs"></div>
+    <p>Watch <b>Preview</b> on the right as you go: type <code>0.25 16.0</code> into it.</p>
+  </div></div>
+  <p style="text-align:right"><button class="btn" id="loadFont">Load this result (the font)</button></p>
+
+  <h2 data-step="3"><span class="n">3</span> Check the strings fit</h2>
+  <ol>
+    <li>In <b>Strings to check</b>, paste the 19 ratios (one per line):
+      <pre id="strList"></pre></li>
+    <li>Set <b class="ui">Fit in</b> to <code>13</code>. Every line should say <b style="color:var(--ok)">13px</b> and none should say "no …". A wrong width means a glyph has a spare column: check its width.</li>
+  </ol>
+
+  <h2 data-step="4"><span class="n">4</span> The layout: two lines, one knob</h2>
+  <ol>
+    <li>Open the <a href="layout.html" target="rmpui-layout" style="color:var(--accent)">layout preview</a> and replace its text with:
+      <pre id="layoutSrc"></pre></li>
+    <li>Choose <b class="ui">Insert font → ratio</b>. It copies your font into <code>"fonts"</code>, and the errors line turns green.</li>
+  </ol>
+  <p>What it says:</p>
+  <ul>
+    <li>Both elements are lists of the same 19 strings, in your font, right-aligned in 13 pixels, driven by P4.</li>
+    <li><code>"detents": 361</code> spreads the knob's range over 361 steps, end to end, rounding to the nearest. That's the same maths Sidecar's detented knobs use.</li>
+    <li><code>"div": 19</code> makes the top line move once every 19 detents.</li>
+    <li><code>"mod": 19</code> makes the bottom line count 0…18 and wrap.</li>
+  </ul>
+  <p style="text-align:right"><button class="btn" id="loadLayout">Load this result (the layout, with the font)</button></p>
+
+  <h2 data-step="5"><span class="n">5</span> Turn the knob</h2>
+  <p>Because the layout uses detents, the preview's <b>P4</b> slider steps through all 361 of them. Drag it: the bottom line counts up through the ratios, and every 19 steps the top line moves on, from <code>0.25/0.25</code> to <code>16.0/16.0</code>.</p>
+  <div class="pairs" id="pairs"></div>
+
+  <h2 data-step="6"><span class="n">6</span> Letters too</h2>
+  <p>A font can have any printable ASCII character, upper and lower case, each as wide as you draw it:</p>
+  <ul>
+    <li><b>Start from</b> the Sidecar 3×5 or 5×7 font (A–Z, 0–9, punctuation) with <b>trim to proportional</b> on: an I becomes 1 wide, an M stays 5. Then add lower case.</li>
+    <li>Leaving out a letter's lower case is fine: lower-case text then uses the capital (and the other way round).</li>
+    <li>Use it for names, headers or list values, e.g. <code>{ "type": "value", "p": 1, "fmt": "list", "items": ["Sine", "Saw", "Square"], "font": "names" }</code>.</li>
+    <li><b>Fit in</b> under Strings to check catches names that are too wide for their box before they reach the Rytm.</li>
+  </ul>
+
+  <h2 data-step="7"><span class="n">7</span> On the Rytm</h2>
+  <p>The layout from step 4 is the whole design. The text sits at <code>(108,17)</code> and <code>(108,23)</code> on the first page.</p>
+  <p class="tip warn"><b>Preview only for now:</b> <code>rmp_ui.c</code>, which draws layouts on the Rytm, doesn't do custom fonts or <code>index</code> detents yet (it skips a custom font and treats an index as the plain zone). Everything else in this layout draws the same on the hardware as here.</p>
+
+  <h2><span class="n">✓</span> What you used</h2>
+  <ul>
+    <li><b>Font editor</b>: proportional glyphs, type-to-jump, copy / paste, a live preview, and string width checks.</li>
+    <li><b>value</b> elements with <code>"font"</code> and <code>"align": "right"</code>.</li>
+    <li><b>index</b>: <code>detents</code>, <code>div</code>, <code>mod</code>, to turn one param into two coordinated lists.</li>
+    <li><b>Layout preview</b> with detent sliders.</li>
+  </ul>
+</div>
+<script type="module">
+import * as R from "./rmpui.js";
+import { progress, paint } from "./tutorial.js";
+progress("ratio");
+const $ = (id) => document.getElementById(id);
+const STRINGS = ["0.25", "0.50", "0.75", "1.00", "2.00", "3.00", "4.00", "5.00", "6.00", "7.00", "8.00", "9.00", "10.0", "11.0", "12.0", "13.0", "14.0", "15.0", "16.0"];
+const TOP14 = 127 * 128, N = 361;
+const v14 = (q) => Math.trunc((q * TOP14 + ((N - 1) >> 1)) / (N - 1));   // Sidecar's value for detent q
+const el = (y, idx) => ({ type: "value", x: 108, y, w: 13, p: 4, fmt: "list", items: STRINGS, font: "ratio", align: "right", index: { detents: N, ...idx } });
+const LAYOUT = { format: "rmpui-1", name: "ratio_b", fonts: {}, pages: { 1: [el(17, { div: 19 }), el(23, { mod: 19 })] } };
+$("strList").textContent = STRINGS.join("\n");
+$("layoutSrc").textContent = JSON.stringify(LAYOUT, null, 2).replace(/\[\n\s+("[^\n]*",?\n\s+)+"[^\n]*"\n\s+\]/g, (m) => "[" + m.slice(1, -1).trim().split(/,\n\s+/).join(", ") + "]");
+
+let REF = null;
+try { const r = await fetch("tutorial-data/ratio_font.json"); if (r.ok) { const { note, ...f } = await r.json(); REF = f; } } catch (e) {}
+const FONT = REF;
+const full = FONT ? { ...LAYOUT, fonts: { ratio: FONT } } : LAYOUT;
+// the 13 x 11 crop at (108,17) for detent q
+const C = R.compile(full);
+function crop(q) {
+  const p = new Array(32).fill(0); p[3] = v14(q) / 128;
+  const fb = R.render(full, 1, p, C).fb, g = new Uint8Array(13 * 11);
+  for (let j = 0; j < 11; j++) for (let i = 0; i < 13; i++) g[j * 13 + i] = fb[(17 + j) * 16 + ((108 + i) >> 3)] & (0x80 >> ((108 + i) & 7)) ? 1 : 0;
+  return g;
+}
+// glyph pictures
+if (FONT) for (const ch of "0123456789.") {
+  const rows = FONT.glyphs[ch], w = rows[0].length, g = Uint8Array.from(rows.join(""), (c) => (c === "#" ? 1 : 0));
+  const f = document.createElement("figure"), c = document.createElement("canvas"); c.className = "pix"; paint(c, g, 12, w, 5); f.append(c, ch); $("glyphs").append(f);
+}
+// a few pairs
+for (const q of [0, 1, 2, 18, 19, 20, 180, 359, 360]) {
+  const f = document.createElement("figure"), c = document.createElement("canvas"); c.className = "pix";
+  paint(c, FONT ? crop(q) : new Uint8Array(143), 4, 13, 11); f.append(c, `detent ${q}`); $("pairs").append(f);
+}
+// hero
+const show = (q) => { $("heroV").textContent = q; paint($("heroOurs"), FONT ? crop(q) : new Uint8Array(143), 10, 13, 11); };
+const slider = $("heroS"); let auto = true; const t0 = performance.now();
+slider.oninput = () => { auto = false; show(+slider.value); };
+(function tick(t) { if (auto) { const q = Math.floor((Math.max(0, t - t0) / 120) % N); slider.value = q; show(q); } requestAnimationFrame(tick); })(t0);
+// hand results to the font editor / layout preview
+$("loadFont").onclick = () => {
+  if (!FONT) return;
+  let db = { fonts: {} }; try { db = JSON.parse(localStorage.getItem("rmpui-fonts") || "null") || db; } catch (e) {}
+  db.fonts = { ...(db.fonts || {}), ratio: FONT }; db.current = "ratio";
+  localStorage.setItem("rmpui-fonts", JSON.stringify(db)); window.open("font.html", "rmpui-font");
+};
+$("loadLayout").onclick = () => { localStorage.setItem("rmpui-layout-from", JSON.stringify({ name: "ratio display" })); localStorage.setItem("rmpui-layout-current", JSON.stringify(full, null, 2).replace(/\[\n\s+("[^\n]*",?\n\s+)+"[^\n]*"\n\s+\]/g, (m) => "[" + m.slice(1, -1).trim().split(/,\n\s+/).join(", ") + "]")); window.open("layout.html", "rmpui-layout"); };
+</script>
+</body>
+</html>

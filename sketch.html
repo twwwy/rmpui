@@ -1,0 +1,2057 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sketch to Frames</title>
+<style>
+:root { --bg: #15171a; --panel: #1d2024; --panel2: #24282d; --line: #33383f; --text: #e6e8eb; --dim: #8b929b; --accent: #5fb3ff; --sel: #ffb35f; --oled: #dfeeff; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+header { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+header h1 { font-size: 14px; margin: 0 10px 0 0; }
+.sp { flex: 1; }
+.btn { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 5px 10px; font: inherit; cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+.btn.on { border-color: var(--sel); color: var(--sel); }
+.btn.primary { background: var(--accent); color: #0b1520; border-color: var(--accent); font-weight: 600; }
+.btn.sm { padding: 3px 8px; font-size: 12px; }
+.btn:disabled { opacity: .4; cursor: default; }
+input[type=number], input.txt { width: 52px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; font: inherit; }
+input.txt { width: 100%; }
+select { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; font: inherit; }
+label { color: var(--dim); display: inline-flex; gap: 5px; align-items: center; }
+main { display: grid; grid-template-columns: 230px 1fr 310px; flex: 1; min-height: 0; }
+main.guide { grid-template-columns: 230px 1fr 310px 440px; }
+aside.g { border-left: 1px solid var(--line); display: none; flex-direction: column; padding: 0; }
+main.guide aside.g { display: flex; }
+aside.g .gh { display: flex; gap: 6px; align-items: center; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+aside.g .gh select { flex: 1; }
+aside.g .gh a { color: var(--dim); text-decoration: none; padding: 0 4px; }
+aside.g iframe { flex: 1; border: 0; width: 100%; background: var(--bg); }
+aside { background: var(--panel); overflow: auto; padding-bottom: 14px; }
+aside.l { border-right: 1px solid var(--line); }
+aside.r { border-left: 1px solid var(--line); }
+h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); margin: 14px 12px 6px; display: flex; align-items: center; gap: 6px; }
+h2 .sp { flex: 1; }
+.keys { display: flex; flex-direction: column; gap: 6px; padding: 0 10px; }
+.key { display: flex; gap: 8px; align-items: center; padding: 6px; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; background: var(--panel2); }
+.key.on { border-color: var(--sel); }
+.key canvas { background: #000; image-rendering: pixelated; }
+.key .x { margin-left: auto; color: var(--dim); background: none; border: 0; cursor: pointer; font-size: 15px; }
+.objs { list-style: none; margin: 0; padding: 0 6px; }
+.obj { display: flex; gap: 6px; align-items: center; padding: 4px 6px; border-radius: 5px; cursor: pointer; border: 1px solid transparent; }
+.obj:hover { background: var(--panel2); }
+.obj.on { border-color: var(--sel); background: #2b241b; }
+.obj .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.obj .k { color: var(--dim); font-size: 11px; }
+.obj.absent .nm { color: var(--dim); font-style: italic; }
+.obj.member { margin-left: 16px; }
+.obj.grp .nm { font-weight: 600; }
+.obj.grp .tw { padding: 0 1px; }
+.obj.hid .nm { opacity: .45; }
+#objs.picking .ico:not(.tw) { pointer-events: none; opacity: .35; }
+.obj.mcand .nm { color: #5fc8ff; }
+.obj.mcand:hover { border-color: #5fc8ff; }
+.obj.mpick { border-color: #78e68c; background: #1b2b1f; }
+.obj.mpick .nm { color: #78e68c; }
+.obj.msrc { border-color: var(--sel); border-style: dashed; }
+.obj.mno { opacity: .4; cursor: not-allowed; }
+.mrow { display: flex; gap: 4px; min-width: 0; }
+.mrow select { flex: 1; min-width: 0; }
+.notice { grid-column: 1 / -1; position: relative; border: 1px solid var(--sel); border-left-width: 3px; border-radius: 5px; background: #2b241b; padding: 7px 26px 7px 9px; font-size: 12px; line-height: 1.45; display: flex; flex-direction: column; gap: 4px; }
+.notice > .ico { position: absolute; top: 3px; right: 3px; }
+.notice .how { color: var(--dim); }
+.notice .how b { color: var(--text); }
+.ico.morph { width: 22px; height: 20px; padding: 0; display: grid; place-items: center; flex: none; }
+.ico.morph.no { color: transparent; }
+.ico.morph.no:hover { color: var(--dim); opacity: .5; }
+.ico.morph.can { color: #aab4bf; opacity: .45; }
+.ico.morph.can:hover { opacity: 1; color: #5fc8ff; }
+.ico.morph.set { color: #78e68c; }
+.ico.morph.bad { color: #ffb35f; }
+.ico.morph.tgt { color: #78e68c; opacity: .5; }
+.ico.morph.tgt svg { transform: scaleX(-1); }
+.mppairs { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 2px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 5px; }
+.obj.dropup { box-shadow: inset 0 2px 0 var(--accent); }
+.obj.dropdn { box-shadow: inset 0 -2px 0 var(--accent); }
+.ico.eye:not(.on) { color: var(--sel); }
+.libbar { display: flex; gap: 8px; align-items: center; margin: 10px 10px 0; padding: 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel2); cursor: pointer; }
+.libbar img { width: 40px; height: 40px; object-fit: contain; background: #000; image-rendering: pixelated; border-radius: 3px; }
+.libbar .lbn { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.libbar .lbn b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.libbar .lbn span { color: var(--dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* one line: "saving…" / "saved …" mustn't change the bar's height */
+.drawer { position: fixed; z-index: 30; left: 0; top: 48px; bottom: 0; width: 380px; background: var(--panel); border-right: 1px solid var(--line); box-shadow: 8px 0 24px #0008; overflow: auto; }
+.drawer.right { left: auto; right: 0; border-right: 0; border-left: 1px solid var(--line); box-shadow: -8px 0 24px #0008; width: 340px; }
+.drawer .dh { display: flex; align-items: center; gap: 6px; padding: 10px 12px; }
+.drawer .dh a { color: var(--dim); text-decoration: none; }
+.drawer .dim { color: var(--dim); font-size: 12px; }
+.drawer .tags { display: flex; gap: 4px; flex-wrap: wrap; padding: 6px 12px; }
+.chip { border: 1px solid var(--line); border-radius: 10px; padding: 0 8px; font-size: 11px; color: var(--dim); cursor: pointer; background: none; }
+.chip.on { border-color: var(--sel); color: var(--sel); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); gap: 8px; padding: 0 12px; }
+.card { border: 1px solid var(--line); border-radius: 6px; padding: 6px; background: var(--panel2); cursor: pointer; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.card:hover { border-color: var(--accent); }
+.card.cur { border-color: var(--sel); }
+.card img { width: 100%; aspect-ratio: 1; object-fit: contain; background: #000; image-rendering: pixelated; border-radius: 3px; }
+.card .cn { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .ct { color: var(--dim); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .ca { display: flex; gap: 2px; }
+.obj.trace { border-top: 1px dashed var(--line); margin-top: 4px; }
+.obj.trace.on { border-color: var(--accent); background: #1b2633; }
+.ico { background: none; border: 1px solid transparent; border-radius: 4px; cursor: pointer; color: var(--dim); font-size: 13px; padding: 0 3px; line-height: 18px; }
+.ico.on { color: var(--sel); }
+.ico.link:not(.on) { filter: grayscale(1); opacity: .35; }
+.ico:hover { border-color: var(--line); }
+/* the "in this key" dot: a bigger target, and on hover it shows what a click does */
+.ico.here { position: relative; width: 22px; height: 20px; padding: 0; font-size: 0; flex: none; }
+.ico.here::before { content: ""; position: absolute; left: 5px; top: 4px; width: 8px; height: 8px; border-radius: 50%; border: 2px solid #aab4bf; }
+.ico.here.on::before { border-color: var(--sel); background: var(--sel); }
+.ico.here.some::before { border-color: var(--sel); background: linear-gradient(90deg, var(--sel) 50%, transparent 50%); }
+.ico.here:hover { border-color: var(--line); background: var(--panel2); }
+.ico.here:hover::before { opacity: 0; }
+.ico.here:hover::after { content: "+"; position: absolute; inset: 0; display: grid; place-items: center; color: #78e68c; font-size: 16px; font-weight: 700; }
+.ico.here.on:hover::after { content: "−"; color: #ff8a8a; }
+.center { overflow: auto; display: flex; flex-direction: column; align-items: center; padding: 14px; gap: 10px; }
+.tools { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { background: var(--panel2); color: var(--dim); border: 0; border-right: 1px solid var(--line); padding: 5px 9px; font: inherit; cursor: pointer; display: inline-flex; gap: 5px; align-items: center; }
+.seg button:last-child { border-right: 0; }
+.seg button.on { background: #2b241b; color: var(--sel); }
+.seg svg { display: block; }
+.seg { flex-wrap: wrap; }
+main.guide .seg .lbl { display: none; }
+main.guide .seg button { padding: 5px 7px; }
+.seg button:disabled { opacity: .4; cursor: default; }
+.seg button#grpTool:not(:disabled) { color: var(--text); }
+#cv { background: #07090b; cursor: crosshair; touch-action: none; display: block; }
+.cvwrap { flex: none; max-width: 100%; max-height: calc(100vh - 250px); overflow: auto; border-radius: 3px; box-shadow: 0 0 0 1px var(--line); overscroll-behavior: contain; }
+#ptag { position: fixed; z-index: 20; pointer-events: none; background: rgba(12,14,17,.92); border: 1px solid #ffb35f88; color: var(--text); border-radius: 5px; padding: 2px 7px; font: 12px/1.4 ui-monospace, Menlo, monospace; white-space: nowrap; display: none; }
+#ptag b { color: var(--sel); font-weight: 600; }
+#ptag i { color: var(--dim); font-style: normal; }
+.cvwrap.zoomed { width: 100%; height: calc(100vh - 250px); background: #101215; }
+#stage { width: max-content; }
+.cvwrap.pan, .cvwrap.pan #cv { cursor: grab !important; }
+.cvwrap.panning, .cvwrap.panning #cv { cursor: grabbing !important; }
+.zoom b { min-width: 44px; text-align: center; color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; padding: 0 4px; align-self: center; font-size: 12px; }
+.status { color: var(--dim); min-height: 18px; text-align: center; }
+.coord { color: var(--dim); font: 12px ui-monospace, Menlo, monospace; min-height: 18px; text-align: center; margin-top: -4px; }
+.coord b { color: var(--sel); font-weight: 600; }
+.status b { color: var(--sel); font-weight: 600; }
+.props { padding: 0 12px; display: grid; grid-template-columns: 82px 1fr; gap: 6px 8px; align-items: center; }
+.props .full { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; }
+.props .hint { grid-column: 1 / -1; color: var(--dim); font-size: 12px; }
+.pv { display: flex; gap: 12px; align-items: flex-end; padding: 0 12px; }
+.pv canvas { background: #000; image-rendering: pixelated; }
+.film { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 12px; }
+.film div { border: 1px solid var(--line); border-radius: 3px; padding: 2px; text-align: center; color: var(--dim); font-size: 9px; cursor: pointer; }
+.film div.key { border-style: dashed; border-color: var(--accent); }
+.film div.on { border-color: var(--sel); border-style: solid; }
+.film canvas { display: block; background: #000; image-rendering: pixelated; }
+.row { display: flex; gap: 8px; align-items: center; padding: 0 12px; flex-wrap: wrap; }
+textarea { width: calc(100% - 24px); margin: 6px 12px; height: 80px; background: #0e1012; color: var(--dim); border: 1px solid var(--line); border-radius: 4px; font: 11px ui-monospace, Menlo, monospace; }
+.note { margin: 8px 12px; padding: 8px 10px; border-radius: 6px; background: var(--panel2); color: var(--dim); font-size: 12px; }
+.note b { color: var(--text); }
+kbd { background: var(--panel2); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; font-size: 10px; color: var(--dim); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Sketch → frames <span style="color:var(--dim);font-weight:400;font-size:11px">v27</span></h1>
+  <label>Cell <input type="number" id="w" min="4" max="128"> × <input type="number" id="h" min="4" max="64"></label>
+  <select id="preset" style="width:130px" title="Common sizes on the 128×64 screen: see 'On the screen' on the right"></select>
+  <label>Frames <select id="steps"><option>2</option><option>4</option><option>8</option><option>16</option><option>32</option><option>64</option><option>128</option></select></label>
+  <label class="btn" style="color:var(--text)" title="An image under the grid to draw over: it goes at the bottom of Objects, where you can select, move, resize, fade or hide it">🖼 Trace image <input type="file" id="trace" accept="image/*" hidden></label>
+  <span class="sp"></span>
+  <a class="btn" href="font.html" target="rmpui-font" style="text-decoration:none" title="Draw fonts for text elements">Fonts ↗</a>
+  <a class="btn" href="board.html" target="rmpui-board" style="text-decoration:none" title="A plugin's whole set of knob graphics on its real pages">Board ↗</a>
+  <a class="btn" href="layout.html" target="rmpui-layout" style="text-decoration:none" title="Preview a whole layout">Layout ↗</a>
+  <button class="btn" id="agentBtn">🤖 Agent</button>
+  <button class="btn" id="guideBtn" title="Tutorials beside the canvas">📖 Guide</button>
+  <button class="btn" id="undo">Undo</button>
+  <button class="btn" id="new">New</button>
+  <button class="btn" id="demo">Dial demo</button>
+  <button class="btn" id="save">Save sketch</button>
+  <label class="btn" style="color:var(--text)">Open sketch <input type="file" id="open" accept=".json" hidden></label>
+</header>
+<main>
+  <aside class="l">
+    <div class="libbar" id="libBar" title="This sketch in the library: click for all of them">
+      <img id="libThumb" alt=""><div class="lbn"><b id="libName">…</b><span id="libSaved"></span></div><button class="btn sm" id="libBtn">📚 Library</button>
+    </div>
+    <h2>Keys (param value)</h2>
+    <div class="keys" id="keys"></div>
+    <div class="row" style="margin-top:8px"><button class="btn sm" id="addkey">+ Key (copy of this one)</button></div>
+    <h2>Objects <span class="sp"></span><span style="text-transform:none;letter-spacing:0;font-size:10px">● in this key · 👁 shown · 🔗 linked · <span style="color:#78e68c">∿</span> morphs</span></h2>
+    <div class="row" style="padding:0 10px 6px"><button class="btn sm" id="grpBtn" title="Group the selected objects (⌘G)">Group ⌘G</button><button class="btn sm" id="ungrpBtn" title="Ungroup (⇧⌘G)">Ungroup ⇧⌘G</button></div>
+    <ul class="objs" id="objs"></ul>
+    <div class="note"><b>●</b> the object is in this key, <b>○</b> it isn't: click the dot to take it out or put it back (Delete takes the selected ones out; then ＋ Put it back, or ⌘Z). <b>🔗</b> linked: edits go to every key, so it stays put. <b style="color:#78e68c">∿</b> morph: green, it morphs into another object (pale and backwards: another object morphs into it); faint, it could (click to pick); orange, its choice can't happen any more; none, it can't (hover to see why). Unlinked objects can differ per key; one missing from a key grows, draws itself on, or pops in. <b>👁</b> hides it on the canvas while you edit (the frames and export keep it). <b>Groups</b>: select objects and ⌘G; click a group to select it all, double-click a name to rename, drag rows to reorder or to move them into / out of a group.</div>
+  </aside>
+  <section class="center">
+    <div class="tools">
+      <div class="seg">
+        <button data-tool="draw" class="on">✎ Draw <kbd>D</kbd></button>
+        <button data-tool="edit" title="Select and edit: click a shape, Shift-click to add, drag a box round objects to select them (⌥ also takes ones the box only touches); drag to move, drag a handle to reshape">↖ Select / Edit <kbd>V</kbd></button>
+      </div>
+      <div class="seg">
+        <button id="grpTool" title="Group the selected objects (⌘G)" disabled>⧉ Group <kbd>⌘G</kbd></button>
+        <button id="partsBtn" title="Parts: shapes you keep in the library to drop into any sketch (P)">🧩 Parts <kbd>P</kbd></button>
+      </div>
+      <div class="seg" id="kindseg"></div>
+      <div class="seg zoom" title="Zoom: ⌘-scroll or pinch over the grid, + / − keys, 0 to fit · Space-drag to pan">
+        <button id="zOut">−</button><b id="zVal">Fit</b><button id="zIn">+</button><button id="zFit">Fit</button>
+      </div>
+    </div>
+    <div class="tools">
+      <label title="A new shape is linked: on every key, edits go everywhere"><input type="checkbox" id="newlink" checked> New shapes linked</label>
+      <label title="Shapes you draw from now on start filled. To fill or unfill an existing object, use 'filled' under Selected object."><input type="checkbox" id="fillnew"> New shapes filled</label>
+      <label><input type="checkbox" id="onion" checked> Onion skin</label>
+      <label><input type="checkbox" id="vec" checked> Show fit</label>
+      <label title="A coordinate tag beside the pointer"><input type="checkbox" id="tagOn" checked> Coords at pointer</label>
+      <label title="Objects only in one of two neighbouring keys morph into each other in drawing order (a 'Morphs into' setting wins)"><input type="checkbox" id="morph"> Auto-pair unmatched</label>
+    </div>
+    <div id="ptag"></div>
+    <div class="cvwrap" id="cvwrap"><div id="stage"><canvas id="cv"></canvas></div></div>
+    <div class="coord" id="coord">&nbsp;</div>
+    <div class="status" id="status"></div>
+  </section>
+  <aside class="r">
+    <h2>Selected object</h2>
+    <div class="props" id="props"></div>
+    <h2>Preview</h2>
+    <div class="row"><label>Value <input type="range" id="val" min="0" max="127" value="0" style="width:120px"></label><b id="valn">0</b><button class="btn sm" id="play">▶ Sweep</button></div>
+    <div class="pv" style="margin-top:8px"><canvas id="p4"></canvas><figure style="margin:0"><canvas id="p1"></canvas><figcaption style="color:var(--dim);font-size:10px">actual</figcaption></figure></div>
+    <h2>On the screen <span class="sp"></span><select id="scrT" title="What's behind the sketch: a drawn guide, or a real page (a reference page, or one you add from an image)" style="font-size:11px;max-width:170px"></select><input type="file" id="scrFile" accept="image/*" hidden></h2>
+    <div style="padding:0 12px"><canvas id="scr" title="Your sketch at its place on a 128×64 screen (shown 2×). Click a slot or cell to move it there; on a real page, drag it anywhere." style="background:#000;image-rendering:pixelated;cursor:pointer;display:block"></canvas></div>
+    <div class="note" id="scrMsg" style="margin-top:6px"></div>
+    <details class="note"><summary><b>Picking a size</b></summary>
+      <ul style="margin:6px 0 0;padding-left:16px">
+        <li>Most sketches show one knob: 8 slots, 4 per row, each <b>32 px</b> wide. Keep about 2 px clear each side, so <b>28 px</b> wide at most.</li>
+        <li>Height depends on how the page splits its rows: a tall top row gives 21 px, its short bottom row 11 px, even rows 18 px each. The label goes under it.</li>
+        <li>Use odd sizes for things with a centre (dials, rings, a needle): 21×21 has a middle pixel, 20×20 doesn't.</li>
+        <li>1 px lines and small curves only read from about 13 px; below that, draw pixel by pixel.</li>
+        <li>Leave text out: labels and values belong to the layout, which draws them in its fonts.</li>
+      </ul></details>
+    <h2>Frames <span id="fcount" style="text-transform:none;letter-spacing:0"></span></h2>
+    <div class="film" id="film"></div>
+    <div class="row" style="margin-top:6px"><button class="btn sm" id="mkkey">Make this frame a key</button><span style="color:var(--dim);font-size:11px">then edit or paste into it</span></div>
+    <h2>Export (rmpUI bitmap)</h2>
+    <div class="row"><label>Name <input id="bname" class="txt" value="dial" style="width:110px"></label><button class="btn primary sm" id="copy">Copy JSON</button></div>
+    <textarea id="out" readonly></textarea>
+    <div class="note">Paste into a layout's <code>"bitmaps"</code> and add <code>{"type":"frames","bmp":"<span id="bn2">dial</span>","p":N}</code>. Plain bitmaps: the Rytm shows exactly this.</div>
+  </aside>
+  <div class="drawer right" id="partDrawer" hidden>
+  <div class="dh"><b>Parts</b> <span class="dim" id="partCount"></span><span class="sp"></span><a href="#" id="partX" title="Close (Esc)">✕</a></div>
+  <div class="dim" style="padding:0 12px 8px">Shapes kept in the library to reuse in any sketch: a knob ring, an arrow, a frame. Click one to drop it into this key, in the middle, as a group you can drag. They are copies: changing a part later doesn't change sketches that used it.</div>
+  <div class="row" style="padding:0 12px 8px"><button class="btn sm" id="partSave">+ Save the selection as a part</button></div>
+  <div class="row" style="padding:0 12px"><input class="txt" id="partQ" placeholder="Search names and tags" style="flex:1"></div>
+  <div class="cards" id="partCards" style="margin-top:8px"></div>
+  </div>
+  <div class="drawer" id="libDrawer" hidden>
+  <div class="dh"><b>Library</b> <span class="dim" id="libCount"></span><span class="sp"></span><a href="#" id="libX" title="Close (Esc)">✕</a></div>
+  <div class="row" style="padding:0 12px"><input class="txt" id="libQ" placeholder="Search names and tags" style="flex:1"></div>
+  <div class="tags" id="libTags"></div>
+  <div class="row" style="padding:0 12px 8px"><button class="btn sm" id="libNew">+ New sketch</button><button class="btn sm" id="libDup">⧉ Duplicate this one</button></div>
+  <div class="cards" id="libCards"></div>
+  <div class="row" style="padding:8px 12px;border-top:1px solid var(--line);margin-top:8px"><button class="btn sm" id="libExp" title="Everything (sketches, layouts, fonts) as one file">⬇ Export library</button><button class="btn sm" id="libImp" title="Merge a library file in: new items are added, newer copies replace older ones, nothing is deleted">⬆ Import…</button></div>
+  <div class="dim" id="libBk" style="padding:0 12px 12px"></div>
+  <div class="note">Every sketch saves itself as you work, with its trace image. They live in this browser; <b>Save sketch</b> still downloads a file.</div>
+</div>
+<aside class="g" id="guide">
+    <div class="gh">
+      <select id="guideSel"><option value="tutorials.html">All tutorials</option><option value="tutorial-fdbk.html">A feedback ripple</option><option value="tutorial-mix.html">An X/Y mix bar</option><option value="tutorial-algo.html">An algorithm picker</option><option value="tutorial-ratio.html">Text with your own font</option></select>
+      <a id="guideTab" href="tutorials.html" target="_blank" title="Open in its own tab">↗</a>
+      <a href="#" id="guideX" title="Close the guide">✕</a>
+    </div>
+    <iframe id="guideFrame" title="Tutorial"></iframe>
+  </aside>
+</main>
+<script type="module">
+import * as K from "./sketch.js";
+import * as LIB from "./lib.js";
+import * as RUI from "./rmpui.js";
+import { startAgent } from "./agent.js";
+
+const $ = (id) => document.getElementById(id);
+const STORE = "rmpui-sketch-v1";
+let multi = new Set(), pencil = null;   // multi: more selected objects besides sel; pencil: the stroke being painted
+let S, cur = 0, tool = "draw", kind = "auto", sel = null, redraw = false, raw = null, lastRaw = null, drag = null, hist = [], playing = 0, clip = null;
+let Z = 16, pend = null, hover = null, hoverPx = null;
+const MG = 22;   // the canvas margin holding the column / row numbers   // pend: a polygon being clicked corner by corner
+const KIND_UI = [
+  ["auto", "Auto", '<path d="M2 12c3-9 6 4 12-8" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="13" cy="12" r="1.6" fill="currentColor"/>'],
+  ["line", "Line", '<line x1="2" y1="13" x2="14" y2="3" stroke="currentColor" stroke-width="1.6"/>'],
+  ["arc", "Arc", '<path d="M2 13A7 7 0 0 1 14 9" fill="none" stroke="currentColor" stroke-width="1.6"/>'],
+  ["circle", "Circle", '<circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/>'],
+  ["rect", "Rect", '<rect x="2" y="3.5" width="12" height="9" fill="none" stroke="currentColor" stroke-width="1.6"/>'],
+  ["poly", "Poly", '<polyline points="2,13 6,3 10,11 14,4" fill="none" stroke="currentColor" stroke-width="1.6"/>'],
+  ["free", "Free", '<path d="M2 10c2-6 4 2 6-2s3-5 6 1" fill="none" stroke="currentColor" stroke-width="1.6"/>'],
+  ["pixels", "Pencil", '<rect x="2" y="2" width="3" height="3" fill="currentColor"/><rect x="6" y="6" width="3" height="3" fill="currentColor"/><rect x="10" y="10" width="3" height="3" fill="currentColor"/><rect x="10" y="2" width="3" height="3" fill="none" stroke="currentColor"/>'],
+];
+
+function load() {
+  try { const t = localStorage.getItem(STORE); if (t) return JSON.parse(t); } catch (e) {}
+  return K.demo();
+}
+function persist() { try { localStorage.setItem(STORE, JSON.stringify(S)); localStorage.setItem(SIDK, asset ? asset.id : ""); } catch (e) {} scheduleSave(); }
+function push() { hist.push(JSON.stringify(S)); if (hist.length > 200) hist.shift(); }
+function changed() { mpEnd(); tidy(); persist(); renderAll(); }
+function tidy() { K.objs(S); tidyGroups(); for (const k of S.keys) k.shapes = K.ordered(S, k.shapes); }   // every key's shapes in object order
+// ---------- groups: S.groups [{id, name, collapsed, hidden}], an object's o.group names its group (one level, no
+// nesting). A group's members sit together in the drawing order; groups and hiding are for editing only: the
+// frames and the export are the same with or without them.
+const G = (gid) => (S.groups || []).find((g) => g.id === gid) || null;
+const members = (gid) => S.objs.filter((o) => o.group === gid).map((o) => o.id);
+function tidyGroups() {
+  if (!S.groups) S.groups = [];
+  for (const o of S.objs) if (o.group != null && !G(o.group)) delete o.group;
+  S.groups = S.groups.filter((g) => S.objs.some((o) => o.group === g.id));
+  // members together, where the group's backmost member is
+  const out = [], done = new Set();
+  for (const o of S.objs) {
+    if (o.group == null) out.push(o);
+    else if (!done.has(o.group)) { done.add(o.group); out.push(...S.objs.filter((q) => q.group === o.group)); }
+  }
+  S.objs = out;
+}
+// the drawing order as top-level units: [id] for a loose object, [ids...] for a group
+function units() {
+  const u = [];
+  for (const o of S.objs) { const last = u[u.length - 1]; if (o.group != null && last && last.g === o.group) last.ids.push(o.id); else u.push({ g: o.group ?? null, ids: [o.id] }); }
+  return u;
+}
+const hiddenObj = (id) => { const o = O(id); return !o || !!o.hidden || !!(o.group != null && G(o.group)?.hidden); };
+const vis = (shapes) => shapes.filter((s) => !hiddenObj(s.id));
+function groupSel() {
+  const ids = selIds();
+  if (ids.length < 2) { status("select two or more objects (Shift-click, in the list or on the canvas), then ⌘G"); return; }
+  push();
+  S.groups = S.groups || [];
+  const gid = Math.max(0, ...S.groups.map((g) => g.id)) + 1;
+  S.groups.push({ id: gid, name: `group ${gid}` });
+  // they gather where the frontmost of them is
+  const at = Math.max(...ids.map((id) => S.objs.findIndex((o) => o.id === id)));
+  const pick = S.objs.filter((o) => ids.includes(o.id)), rest = S.objs.filter((o) => !ids.includes(o.id));
+  const before = S.objs.slice(0, at + 1).filter((o) => !ids.includes(o.id)).length;
+  for (const o of pick) o.group = gid;
+  S.objs = [...rest.slice(0, before), ...pick, ...rest.slice(before)];
+  changed();
+  status(`grouped ${pick.length} objects as <b>group ${gid}</b>: click it in the list to select them all, double-click its name to rename`);
+}
+function ungroupSel() {
+  const gs = new Set(selIds().map((id) => O(id)?.group).filter((g) => g != null));
+  if (!gs.size) return;
+  push();
+  for (const o of S.objs) if (gs.has(o.group)) delete o.group;
+  changed();
+  status(`ungrouped (the objects stay selected)`);
+}
+function selectGroup(gid, add) {
+  const ids = members(gid);
+  if (add && sel != null) { for (const id of ids) if (id !== sel) multi.add(id); }
+  else { sel = ids[ids.length - 1] ?? null; multi = new Set(ids.filter((id) => id !== sel)); }
+}
+// move a whole unit (a group, or a loose object) one place toward the front (+1) or the back (-1)
+function moveUnit(ids, d) {
+  const u = units(), i = u.findIndex((x) => x.ids.includes(ids[0])), j = i + d;
+  if (i < 0 || j < 0 || j >= u.length) return;
+  [u[i], u[j]] = [u[j], u[i]];
+  const order = u.flatMap((x) => x.ids);
+  S.objs = order.map((id) => O(id));
+}
+// drag and drop in the list: put these objects just in front of (above in the list) or behind the target row, taking
+// its group (or none, when dropped beside a loose object or a group's header)
+// gid: the group they join (null: none); "edge": past the target's whole group, and they keep their own (a group dragged)
+function dropObjs(ids, target, above, gid) {
+  const pick = S.objs.filter((o) => ids.includes(o.id));
+  if (!pick.length || ids.includes(target)) return;
+  push();
+  const rest = S.objs.filter((o) => !ids.includes(o.id));
+  let at = rest.findIndex((o) => o.id === target);
+  if (at < 0) return;
+  const t = O(target);
+  if (gid === "edge") {
+    if (t.group != null) { const m = rest.map((o, k) => [o, k]).filter(([o]) => o.group === t.group).map(([, k]) => k); at = above ? Math.max(...m) : Math.min(...m); }
+  } else for (const o of pick) if (gid == null) delete o.group; else o.group = gid;
+  const k = above ? at + 1 : at;
+  S.objs = [...rest.slice(0, k), ...pick, ...rest.slice(k)];
+  changed();
+}
+const key = () => S.keys[cur];
+const sorted = () => S.keys.map((k, i) => [k, i]).sort((a, b) => a[0].v - b[0].v);
+const O = (id) => K.objOf(S, id);
+const inKey = (k, id) => k.shapes.find((s) => s.id === id) || null;
+const findSel = () => (sel == null ? null : inKey(key(), sel));
+const selIds = () => (sel == null ? [] : [sel, ...[...multi].filter((id) => id !== sel)]);
+const isSel = (id) => id === sel || multi.has(id);
+function pick(id, add) {   // click: select just this; shift-click: add / remove it
+  if (!add || sel == null) { sel = id; multi = new Set(); return; }
+  if (id === sel) { const rest = [...multi]; sel = rest.length ? rest[0] : null; multi = new Set(rest.slice(1)); }
+  else if (multi.has(id)) multi.delete(id); else multi.add(id);
+}
+const anchors = () => vis(key().shapes).flatMap((s) => K.handles(s).map((p) => [Math.round(p[0] * 2) / 2, Math.round(p[1] * 2) / 2]));
+const cloneS = (s) => JSON.parse(JSON.stringify(s));
+const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+// an edit to an object: in this key, or in every key holding it when it is linked
+function applyObj(id, fn) {
+  const keys = O(id)?.linked ? S.keys : [key()];
+  for (const k of keys) { const s = inKey(k, id); if (s) fn(s, k); }
+}
+// the object's shape in the key nearest (by value) to this one that has it
+function nearestShape(id) {
+  const v = key().v;
+  let best = null, bd = 1e9;
+  for (const k of S.keys) { const s = inKey(k, id); if (s && Math.abs(k.v - v) < bd) { bd = Math.abs(k.v - v); best = s; } }
+  return best || O(id)?.park || null;   // park: its shape, kept when it was taken out of the last key that had it
+}
+function putEverywhere(id, src) { for (const k of S.keys) { const i = k.shapes.findIndex((s) => s.id === id); if (i >= 0) k.shapes[i] = cloneS(src); else k.shapes.push(cloneS(src)); } }
+let unlinked = null;   // ids just unlinked: their settings ask whether to keep the copies in the other keys
+function setLinked(id, on) {   // linking: every key takes this key's shape (or the nearest one's)
+  O(id).linked = on;
+  if (on) putEverywhere(id, inKey(key(), id) || nearestShape(id));
+  else if (S.keys.some((k) => k !== key() && inKey(k, id))) unlinked = [...new Set([...(unlinked || []), id])];
+}
+function onlyHere(ids) {   // keep these only in this key: out of every other one
+  push();
+  for (const id of ids) { if (!inKey(key(), id)) { const n = nearestShape(id); if (n) key().shapes.push(cloneS(n)); } for (const k of S.keys) if (k !== key()) k.shapes = k.shapes.filter((q) => q.id !== id); }
+  unlinked = null; changed();
+  status(`${ids.length > 1 ? `${ids.length} objects are` : `<b>${esc(O(ids[0]).name)}</b> is`} now only in this key (${key().v}): in the others ${ids.length > 1 ? "they come" : "it comes"} and go${ids.length > 1 ? "" : "es"} by ${ids.length > 1 ? "their" : "its"} own style`);
+}
+function toggleHere(id) {
+  if (inKey(key(), id)) {
+    O(id).linked = false;
+    if (!S.keys.some((k) => k !== key() && inKey(k, id))) O(id).park = cloneS(inKey(key(), id));
+    key().shapes = key().shapes.filter((q) => q.id !== id);
+    status(`<b>${esc(O(id).name)}</b> removed from this key: it comes / goes here (${O(id).appear})`);
+  } else {
+    const n = nearestShape(id);
+    if (n) { key().shapes.push(cloneS(n)); delete O(id).park; }
+    else status(`<b>${esc(O(id).name)}</b> isn't in any key, so there's no shape to bring back: ⌘Z, or select it and Redraw it here`);
+  }
+}
+function deleteObj(id) { for (const k of S.keys) k.shapes = k.shapes.filter((q) => q.id !== id); S.objs = S.objs.filter((o) => o.id !== id); for (const o of S.objs) if (o.into === id) delete o.into; if (sel === id) sel = null; }
+function newObj(shape, meta, after) {
+  const id = S.next++;
+  shape.id = id;
+  const o = Object.assign({ name: `${shape.kind} ${id}`, linked: false, appear: "grow" }, meta || {}, { id });
+  const at = after == null ? -1 : S.objs.findIndex((q) => q.id === after);
+  if (at >= 0) S.objs.splice(at + 1, 0, o); else S.objs.push(o);
+  return id;
+}
+// ---------- copy / paste
+function copySel() {
+  const items = selIds().map((id) => { const s = inKey(key(), id) || nearestShape(id); return s && { shape: cloneS(s), meta: cloneS(O(id)) }; }).filter(Boolean);
+  if (!items.length) return;
+  clip = items;
+  status(`copied ${items.length === 1 ? `<b>${esc(items[0].meta.name)}</b>` : `<b>${items.length} objects</b>`}: pick a key (or make a frame a key) and paste with ⌘V`);
+}
+// pasting into a key that lacks an object adds the same object (it moves from key to key); otherwise a new copy,
+// in this key only, on top of the original: drag it or nudge it with the arrow keys
+function paste() {
+  if (!clip) return;
+  push();
+  const got = [], fresh = [];
+  let same = 0;
+  for (const it of clip) {
+    const sh = cloneS(it.shape);
+    if (O(sh.id) && !inKey(key(), sh.id)) { key().shapes.push(sh); if (O(sh.id).linked) setLinked(sh.id, true); got.push(sh.id); same++; }
+    else { const id = newObj(sh, { name: it.meta.name + " copy", appear: it.meta.appear }, it.shape.id); key().shapes.push(sh); got.push(id); fresh.push([id, it.meta.group]); }
+  }
+  // new copies of a group's members: two or more make a new group (a copy of the group); one stays in its group
+  S.groups = S.groups || [];
+  for (const g of new Set(fresh.map(([, g]) => g).filter((g) => g != null))) {
+    const ids = fresh.filter(([, q]) => q === g).map(([id]) => id);
+    if (ids.length === 1) { if (G(g)) O(ids[0]).group = g; continue; }
+    const gid = Math.max(0, ...S.groups.map((q) => q.id)) + 1;
+    S.groups.push({ id: gid, name: (G(g)?.name || "group") + " copy" });
+    for (const id of ids) O(id).group = gid;
+  }
+  sel = got[0]; multi = new Set(got.slice(1));
+  const n = got.length, what = n === 1 ? `<b>${esc(O(sel).name)}</b>` : `<b>${n} objects</b>`;
+  status(same === n ? `pasted ${what} into this key (the same object${n > 1 ? "s" : ""}, so ${n > 1 ? "they move" : "it moves"} from key to key)`
+    : `pasted ${what} as new${same ? ` (${same} as the same object)` : ""}: drag or use the arrow keys to place ${n > 1 ? "them" : "it"}`);
+  changed();
+}
+function nudge(dx, dy) {
+  const ids = selIds().filter((id) => inKey(key(), id));
+  if (!ids.length) return;
+  push();
+  for (const id of ids) applyObj(id, (s) => K.moveShape(s, dx, dy));
+  changed();
+}
+
+// ---------- parts: objects kept in the library (type "part") to drop into any sketch. A part holds each object's
+// settings and its shape in the key it was saved from, moved so the drawing starts at 0,0: { items: [{ shape, meta }],
+// w, h }. Dropping one in adds new objects (a group when there are several): copies, not links.
+function partOf(ids) {
+  const items = ids.map((id) => { const sh = inKey(key(), id) || nearestShape(id); return sh && { shape: cloneS(sh), meta: { name: O(id).name, appear: O(id).appear, linked: !!O(id).linked } }; }).filter(Boolean);
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const it of items) for (const [x, y] of K.raster(it.shape)) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  if (!items.length || x0 === Infinity) return null;
+  for (const it of items) { K.moveShape(it.shape, -x0, -y0); delete it.shape.id; }
+  return { items, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+}
+const partThumb = (p) => LIB.thumbOf(K.draw(p.items.map((it, i) => ({ ...it.shape, id: i + 1 })), p.w, p.h), p.w, p.h);
+async function savePart() {
+  const ids = selIds();
+  if (!ids.length) return status("select the objects to keep as a part first (Select tool, or click them in Objects)");
+  const p = partOf(ids); if (!p) return status("nothing to keep: the selection draws no pixels in this key");
+  const g = O(ids[0]).group != null && members(O(ids[0]).group).length === ids.length && ids.every((id) => O(id).group === O(ids[0]).group) ? G(O(ids[0]).group) : null;
+  const want = prompt(`Name of the part (${p.w}×${p.h}, ${p.items.length} object${p.items.length > 1 ? "s" : ""})`, g?.name || (ids.length === 1 ? O(ids[0]).name : "part"));
+  if (!want) return;
+  try {
+    const name = await LIB.freeName("part", want.trim());
+    await LIB.put({ id: LIB.newId(), type: "part", name, tags: [], data: p, thumb: partThumb(p) });
+    status(`kept <b>${esc(name)}</b> as a part (${p.w}×${p.h}): 🧩 Parts drops it into any sketch`);
+    if (!$("partDrawer").hidden) renderParts();
+  } catch (e) { status("couldn't save the part: " + esc(e.message)); }
+}
+async function insertPart(id) {
+  const a = await LIB.get(id); if (!a?.data?.items?.length) return;
+  const p = a.data, dx = Math.max(0, Math.floor((S.w - p.w) / 2)), dy = Math.max(0, Math.floor((S.h - p.h) / 2));
+  push();
+  const got = [];
+  for (const it of p.items) {
+    const sh = cloneS(it.shape); K.moveShape(sh, dx, dy);
+    const nid = newObj(sh, { name: it.meta.name, appear: it.meta.appear || "grow", linked: false });
+    key().shapes.push(sh); if (it.meta.linked) setLinked(nid, true);
+    got.push(nid);
+  }
+  S.groups = S.groups || [];
+  if (got.length > 1) { const gid = Math.max(0, ...S.groups.map((q) => q.id)) + 1; S.groups.push({ id: gid, name: a.name }); for (const nid of got) O(nid).group = gid; }
+  sel = got[0]; multi = new Set(got.slice(1)); trSel = false;
+  setTool("edit");
+  changed();
+  status(`dropped in <b>${esc(a.name)}</b>${p.w > S.w || p.h > S.h ? ` (${p.w}×${p.h}: bigger than this ${S.w}×${S.h} cell, so parts of it are off the edge)` : ""}: drag it or use the arrow keys to place it`);
+}
+async function renderParts() {
+  const all = await LIB.list("part", true), q = $("partQ").value.trim().toLowerCase();
+  const shown = all.filter((a) => !q || a.name.toLowerCase().includes(q) || (a.tags || []).some((g) => g.toLowerCase().includes(q)));
+  $("partCount").textContent = `${all.length}${shown.length < all.length ? ` · ${shown.length} shown` : ""}`;
+  $("partSave").disabled = !selIds().length;
+  const box = $("partCards"); box.innerHTML = "";
+  for (const a of shown) {
+    const c = document.createElement("div"); c.className = "card"; c.title = `${a.name}: click to drop it into this key`;
+    c.innerHTML = `<img src="${a.thumb || ""}" alt=""><span class="cn">${esc(a.name)}</span><span class="ct">${a.data.w}×${a.data.h} · ${a.data.items.length} object${a.data.items.length > 1 ? "s" : ""}${(a.tags || []).length ? " · " + esc(a.tags.join(", ")) : ""}</span>
+      <span class="ca"><button class="ico" data-a="ren" title="Rename">✎</button><button class="ico" data-a="tag" title="Tags">🏷</button><button class="ico" data-a="del" title="Delete">✕</button></span>`;
+    c.onclick = () => insertPart(a.id);
+    c.querySelectorAll("[data-a]").forEach((b) => (b.onclick = async (e) => {
+      e.stopPropagation();
+      if (b.dataset.a === "ren") { const n = prompt("Part name", a.name); if (n && n.trim() !== a.name) await LIB.put({ ...a, name: await LIB.freeName("part", n.trim(), a.id), keepTime: true }); }
+      else if (b.dataset.a === "tag") { const n = prompt("Tags, separated by commas", (a.tags || []).join(", ")); if (n != null) await LIB.put({ ...a, tags: [...new Set(n.split(",").map((t) => t.trim()).filter(Boolean))], keepTime: true }); }
+      else if (confirm(`Delete the part "${a.name}"? Sketches that used it keep their copies.`)) await LIB.del(a.id);
+      renderParts();
+    }));
+    box.append(c);
+  }
+  if (!shown.length) box.innerHTML = `<div class="dim" style="grid-column:1/-1">${all.length ? "Nothing matches." : "No parts yet: select some objects, then “Save the selection as a part”."}</div>`;
+}
+function showParts(on) { if (on && AG) AG.show(false); $("partDrawer").style.top = document.querySelector("header").offsetHeight + "px"; $("partDrawer").hidden = !on; $("partsBtn").classList.toggle("on", on); if (on) { showLib(false); renderParts(); } }
+$("partsBtn").onclick = () => showParts($("partDrawer").hidden);
+$("partX").onclick = (e) => { e.preventDefault(); showParts(false); };
+$("partSave").onclick = async () => { await savePart(); renderParts(); };
+$("partQ").oninput = renderParts;
+LIB.onChange((m) => { if (m.type === "part" && !$("partDrawer").hidden) renderParts(); });
+
+// ---------- the library: every sketch saved in the browser (lib.js, IndexedDB), the open one saving itself as you
+// work. asset: the open sketch's library entry {id, name, tags, created}; its data is {sketch, trace, bname, bitmap}.
+const CURK = "rmpui-sketch-cur", FROMK = "rmpui-sketch-from", SIDK = "rmpui-sketch-store-id";   // SIDK: whose sketch STORE holds
+let asset = null, saveTm = 0, libQ = "", libTag = null;
+const sanitize = (n) => (n || "bmp").replace(/[^A-Za-z0-9_]/g, "_").replace(/^_+|_+$/g, "") || "bmp";
+let pendingSave = false;
+function setSaved(t) { const e = $("libSaved"); e.textContent = t; e.title = t; }
+function scheduleSave() { if (!asset) return; if (!agentQuiet && AG) AG.userEdited({ type: "sketch", name: asset.name }); clearTimeout(saveTm); pendingSave = true; setSaved("saving…"); saveTm = setTimeout(saveAsset, 400); }
+// the busiest frame stands for the sketch
+function thumbNow() { const fr = K.frames(S); let best = fr[0], n = -1; for (const g of fr) { const c = g.reduce((a, b) => a + b, 0); if (c > n) { n = c; best = g; } } return LIB.thumbOf(best || new Uint8Array(S.w * S.h), S.w, S.h); }
+// what saving the open sketch writes, taken now (so a switch straight after can't mix two sketches up)
+function snapshot() {
+  let bitmap = null; try { bitmap = JSON.parse($("out").value); } catch (e) {}
+  return { ...asset, type: "sketch", data: { sketch: JSON.parse(JSON.stringify(S)), trace: TR, bname: $("bname").value, bitmap }, thumb: thumbNow() };
+}
+async function saveAsset(snap) {
+  if (!snap) { if (!asset) return; clearTimeout(saveTm); pendingSave = false; snap = snapshot(); }
+  try {
+    const a = await LIB.put(snap);
+    if (asset && a.id === asset.id) { asset = { id: a.id, name: asset.name, tags: asset.tags, created: a.created, updated: a.updated }; renderLibBar(); }
+  } catch (e) { setSaved("not saved: " + e.message); }
+}
+function renderLibBar() {
+  if (!asset) return;
+  $("libName").textContent = asset.name;
+  { const t = (Date.now() - asset.updated) / 1000; setSaved(t < 50 ? "✓ saved" : "saved " + (t < 3600 ? `${Math.round(t / 60)}m ago` : t < 86400 ? `${Math.round(t / 3600)}h ago` : new Date(asset.updated).toLocaleDateString())); }
+  LIB.get(asset.id).then((a) => { if (a?.thumb) $("libThumb").src = a.thumb; });
+}
+function ago(t) { const s = (Date.now() - t) / 1000; return s < 50 ? "just now" : s < 3600 ? `${Math.round(s / 60)} min ago` : s < 86400 ? `${Math.round(s / 3600)} h ago` : new Date(t).toLocaleDateString(); }
+function useSketch(sk, tr, bname) {
+  S = sk; TR = tr || null; trImg = null; trSel = false; loadTraceImg();
+  $("bname").value = bname || sanitize(asset?.name);
+  hist = []; cur = 0; sel = null; multi = new Set(); pend = null; lastRaw = null; raw = null; drag = null; setRedraw(false);
+  tidy();
+  try { localStorage.setItem(STORE, JSON.stringify(S)); localStorage.setItem(SIDK, asset.id); localStorage.setItem(CURK, asset.id); } catch (e) {}
+  renderAll(); renderLibBar();
+}
+async function openAsset(id) {
+  if (asset && id === asset.id) return;
+  if (asset) { clearTimeout(saveTm); await saveAsset(snapshot()); }
+  const a = await LIB.get(id);
+  if (!a) return;
+  asset = { id: a.id, name: a.name, tags: a.tags || [], created: a.created, updated: a.updated };
+  useSketch(a.data.sketch, a.data.trace, a.data.bname);
+  status(`opened <b>${esc(a.name)}</b>`);
+  if (!$("libDrawer").hidden) renderLib();
+}
+// switches at once (the old one is saved from a snapshot), then settles on a free name
+async function createAsset(sk, name, tr) {
+  const prev = asset ? (clearTimeout(saveTm), snapshot()) : null;
+  name = name || "sketch";
+  asset = { id: LIB.newId(), name, tags: [], created: Date.now() };
+  useSketch(sk, tr, sanitize(name));
+  const me = asset;
+  if (prev) await saveAsset(prev);
+  me.name = await LIB.freeName("sketch", name, me.id);
+  if (asset === me) await saveAsset(); else await saveAsset({ ...me, type: "sketch", data: { sketch: sk, trace: tr || null, bname: sanitize(name), bitmap: null }, thumb: "" });
+  status(`new sketch <b>${esc(name)}</b> in the library`);
+  if (!$("libDrawer").hidden) renderLib();
+}
+// a tutorial's "Open in editor": the sketch in STORE, and its name in FROMK, become a new library sketch
+async function incoming() {
+  let from = null; try { from = JSON.parse(localStorage.getItem(FROMK) || "null"); localStorage.removeItem(FROMK); } catch (e) {}
+  if (!from) return false;
+  await createAsset(load(), from.name || "tutorial");
+  status(`<b>${esc(asset.name)}</b>: the tutorial's sketch, as a new sketch in the library (your others are in 📚 Library)`);
+  return true;
+}
+async function startLibrary() {
+  try {
+    const have = await LIB.list("sketch");
+    if (!have.length) {   // first run: what the editor had becomes the first library sketch, with the old trace image
+      let tr = null; try { tr = JSON.parse(localStorage.getItem(TKEY) || "null"); } catch (e) {}
+      let had = false; try { had = !!localStorage.getItem(STORE); } catch (e) {}
+      asset = { id: LIB.newId(), name: had ? "my sketch" : "dial demo", tags: [] };
+      useSketch(S, tr, $("bname").value || sanitize(asset.name));
+      await saveAsset();
+      try { localStorage.removeItem(TKEY); } catch (e) {}
+    }
+    if (await incoming()) return;
+    if (asset) return;
+    let id = null, last = null; try { id = localStorage.getItem(CURK); if (localStorage.getItem(SIDK) === id) last = localStorage.getItem(STORE); } catch (e) {}
+    const list = await LIB.list("sketch");
+    await openAsset(list.some((a) => a.id === id) ? id : list[0].id);
+    // edits made just before the page closed, that the library didn't get in time
+    if (last && asset.id === id && last !== JSON.stringify(S)) { try { S = JSON.parse(last); tidy(); persist(); renderAll(); } catch (e) {} }
+  } catch (e) { status(`the library isn't available here (${esc(e.message)}): this sketch is kept the old way`); asset = null; }
+}
+LIB.onChange(async (m) => {
+  if (m.type === "sketch" && !$("libDrawer").hidden) renderLib();
+  if (m.op !== "put" || !asset || m.id !== asset.id) return;
+  // the open sketch changed elsewhere (another tab, an import): follow it, unless there are edits here not saved yet
+  const a = await LIB.get(m.id);
+  if (!a || !asset || a.id !== asset.id || a.updated <= (asset.updated || 0)) return;
+  if (pendingSave) { status(`<b>${esc(asset.name)}</b> was also changed in another tab: the one saved last wins`); return; }
+  if (JSON.stringify(a.data?.sketch) !== JSON.stringify(S)) { const id = a.id; asset = null; await openAsset(id); status(`<b>${esc(a.name)}</b> changed in another tab (or an import): showing that version`); }
+  else { asset.name = a.name; asset.tags = a.tags || []; asset.updated = a.updated; renderLibBar(); }
+});
+addEventListener("pagehide", () => { if (asset) saveAsset(); });
+document.addEventListener("visibilitychange", () => { if (document.hidden && asset) saveAsset(); });
+// the drawer
+async function renderLib() {
+  const all = await LIB.list("sketch");
+  const tags = [...new Set(all.flatMap((a) => a.tags || []))].sort();
+  if (libTag && !tags.includes(libTag)) libTag = null;
+  $("libTags").innerHTML = tags.map((g) => `<button class="chip ${g === libTag ? "on" : ""}" data-tag="${esc(g)}">${esc(g)}</button>`).join("");
+  $("libTags").querySelectorAll("[data-tag]").forEach((b) => (b.onclick = () => { libTag = libTag === b.dataset.tag ? null : b.dataset.tag; renderLib(); }));
+  const q = libQ.trim().toLowerCase();
+  const shown = all.filter((a) => (!libTag || (a.tags || []).includes(libTag)) && (!q || a.name.toLowerCase().includes(q) || (a.tags || []).some((g) => g.toLowerCase().includes(q))));
+  $("libCount").textContent = `${all.length} sketch${all.length === 1 ? "" : "es"}${shown.length < all.length ? ` · ${shown.length} shown` : ""}`;
+  const box = $("libCards"); box.innerHTML = "";
+  for (const a of shown) {
+    const c = document.createElement("div"); c.className = "card" + (asset && a.id === asset.id ? " cur" : ""); c.title = `${a.name}\nchanged ${new Date(a.updated).toLocaleString()}`;
+    c.innerHTML = `<img src="${a.thumb || ""}" alt=""><span class="cn">${esc(a.name)}</span><span class="ct">${(a.tags || []).length ? esc(a.tags.join(", ")) : ago(a.updated)}</span>
+      <span class="ca"><button class="ico" data-a="ren" title="Rename">✎</button><button class="ico" data-a="tag" title="Tags">🏷</button><button class="ico" data-a="dup" title="Duplicate">⧉</button><button class="ico" data-a="del" title="Delete">✕</button></span>`;
+    c.onclick = () => openAsset(a.id);
+    c.querySelectorAll("[data-a]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); libAct(b.dataset.a, a); }));
+    box.append(c);
+  }
+  if (!shown.length) box.innerHTML = `<div class="dim">${all.length ? "Nothing matches." : "No sketches yet."}</div>`;
+}
+async function libAct(act, a) {
+  if (act === "ren") {
+    const n = prompt("Sketch name", a.name); if (!n || n === a.name) return;
+    const name = await LIB.freeName("sketch", n.trim(), a.id);
+    if (asset && a.id === asset.id) { asset.name = name; await saveAsset(); }
+    else { const full = await LIB.get(a.id); await LIB.put({ ...full, name, keepTime: true }); }
+  } else if (act === "tag") {
+    const n = prompt("Tags, separated by commas", (a.tags || []).join(", ")); if (n == null) return;
+    const tags = [...new Set(n.split(",").map((s) => s.trim()).filter(Boolean))];
+    if (asset && a.id === asset.id) { asset.tags = tags; await saveAsset(); }
+    else { const full = await LIB.get(a.id); await LIB.put({ ...full, tags, keepTime: true }); }
+  } else if (act === "dup") {
+    if (asset && a.id === asset.id) await saveAsset();
+    const full = await LIB.get(a.id);
+    await createAsset(JSON.parse(JSON.stringify(full.data.sketch)), full.name + " copy", full.data.trace);
+  } else if (act === "del") {
+    if (!confirm(`Delete the sketch "${a.name}" from the library? This can't be undone (Save sketch first to keep a file).`)) return;
+    await LIB.del(a.id);
+    if (asset && a.id === asset.id) {
+      asset = null;
+      const rest = await LIB.list("sketch");
+      if (rest.length) await openAsset(rest[0].id);
+      else await createAsset({ w: S.w, h: S.h, steps: S.steps, next: 1, objs: [], keys: [{ v: 0, shapes: [] }, { v: 127, shapes: [] }] }, "sketch");
+    }
+  }
+  renderLib(); renderLibBar();
+}
+function showLib(on) { if (on && AG) AG.show(false); if (on) { renderBk(); if (!$("partDrawer").hidden) showParts(false); } $("libDrawer").style.top = document.querySelector("header").offsetHeight + "px"; $("libDrawer").hidden = !on; $("libBtn").classList.toggle("on", on); if (on) { renderLib(); $("libQ").focus(); } }
+$("libBar").onclick = () => showLib($("libDrawer").hidden);
+$("libBtn").onclick = (e) => { e.stopPropagation(); showLib($("libDrawer").hidden); };
+$("libX").onclick = (e) => { e.preventDefault(); showLib(false); };
+$("libQ").oninput = () => { libQ = $("libQ").value; renderLib(); };
+$("libQ").onkeydown = (e) => { if (e.key === "Escape") showLib(false); };
+$("libNew").onclick = () => $("new").click();
+function renderBk() { const le = LIB.lastExport(); $("libBk").innerHTML = `Kept in this browser only. Last exported: <b>${le ? ago(le) : "never"}</b>${!le || Date.now() - le > 7 * 864e5 ? " · export now and then as a backup" : ""}.`; }
+$("libExp").onclick = async () => { await saveAsset(); const n = await LIB.exportFile(); $("libBk").textContent = `Exported ${Object.entries(n).map(([t, k]) => `${k} ${t}${k === 1 ? "" : t === "sketch" ? "es" : "s"}`).join(", ")}.`; };
+$("libImp").onclick = async () => {
+  try {
+    await saveAsset();
+    const r = await LIB.importFile(); if (!r) return;
+    if (asset && r.ids.includes(asset.id)) { const id = asset.id; clearTimeout(saveTm); asset = null; await openAsset(id); }   // the file had a newer copy of this one
+    await renderLib(); renderLibBar(); $("libBk").textContent = "Imported: " + LIB.importSummary(r) + ".";
+  } catch (e) { $("libBk").textContent = "Import failed: " + e.message; }
+};
+$("libDup").onclick = () => asset && libAct("dup", asset);
+$("libName").ondblclick = (e) => { e.stopPropagation(); if (asset) libAct("ren", asset); };
+
+// ---------- the trace image: a picture under the grid to draw over. It is not part of the sketch (frames, export and
+// Save ignore it); it is kept in this browser on its own, with its place, size and fade.
+const TKEY = "rmpui-trace";
+let TR = null, trImg = null, trSel = false;   // TR: {name, src (data URL), x, y, w, h (sketch pixels), op, hidden, smooth}
+function saveTrace() { scheduleSave(); }   // each sketch in the library keeps its own trace image
+function loadTraceImg(cb) { if (!TR) { trImg = null; return; } const im = new Image(); im.onload = () => { trImg = im; cb && cb(); drawCanvas(); }; im.src = TR.src; }
+// fitted inside the grid, keeping its shape
+function fitTrace(stretch) {
+  if (!TR || !trImg) return;
+  if (stretch) Object.assign(TR, { x: 0, y: 0, w: S.w, h: S.h });
+  else { const k = Math.min(S.w / trImg.naturalWidth, S.h / trImg.naturalHeight), w = +(trImg.naturalWidth * k).toFixed(2), h = +(trImg.naturalHeight * k).toFixed(2); Object.assign(TR, { w, h, x: +((S.w - w) / 2).toFixed(2), y: +((S.h - h) / 2).toFixed(2) }); }
+}
+function addTrace(file) {
+  const fr = new FileReader();
+  fr.onload = () => {
+    const keep = TR ? { op: TR.op, smooth: TR.smooth } : {};
+    TR = { name: file.name, src: fr.result, x: 0, y: 0, w: S.w, h: S.h, op: 0.35, ...keep };
+    loadTraceImg(() => { fitTrace(false); trSel = true; sel = null; multi = new Set(); setTool("edit"); saveTrace(); renderAll(); status(`<b>${esc(TR.name)}</b> is under the grid: drag it to move, drag a blue handle to resize (Shift: free shape, ⌥: fine steps), arrows nudge`); });
+  };
+  fr.readAsDataURL(file);
+}
+// handles in sketch-pixel edges: corners TL TR BR BL, then edges T R B L
+// (a handle beyond the grid is drawn, and grabbed, at the grid's edge, so it can always be reached)
+function trHandles() { const e = 4 / Z, cl = (v, m) => Math.max(e, Math.min(m - e, v)), x = TR.x, y = TR.y, w = TR.w, h = TR.h, X = (v) => cl(v, S.w), Y = (v) => cl(v, S.h);
+  return [[x, y], [x + w, y], [x + w, y + h], [x, y + h], [x + w / 2, y], [x + w, y + h / 2], [x + w / 2, y + h], [x, y + h / 2]].map(([a, b]) => [X(a), Y(b)]); }
+// what is under a point: a handle's index, -1 for the body, null for nothing
+function trHit(ep) {
+  const r = 7 / Z, H = trHandles();
+  for (let i = 0; i < H.length; i++) if (Math.abs(H[i][0] - ep[0]) < r && Math.abs(H[i][1] - ep[1]) < r) return i;
+  return ep[0] >= TR.x && ep[0] <= TR.x + TR.w && ep[1] >= TR.y && ep[1] <= TR.y + TR.h ? -1 : null;
+}
+// dragging: whole sketch pixels, or tenths with ⌥; corners keep the picture's shape unless Shift is held
+function trDrag(ep, e) {
+  const d = drag, t0 = d.t0, sn = (v) => (e.altKey ? Math.round(v * 10) / 10 : Math.round(v));
+  const dx = ep[0] - d.e0[0], dy = ep[1] - d.e0[1];
+  if (d.kind === "trm") { TR.x = sn(t0.x + dx); TR.y = sn(t0.y + dy); return; }
+  let x0 = t0.x, y0 = t0.y, x1 = t0.x + t0.w, y1 = t0.y + t0.h;
+  const i = d.i, L = i === 0 || i === 3 || i === 7, R = i === 1 || i === 2 || i === 5, T = i === 0 || i === 1 || i === 4, B = i === 2 || i === 3 || i === 6;
+  if (L) x0 = sn(x0 + dx); if (R) x1 = sn(x1 + dx); if (T) y0 = sn(y0 + dy); if (B) y1 = sn(y1 + dy);
+  if (i < 4 && !e.shiftKey) {   // a corner: keep the shape, sized by the wider move, from the opposite corner
+    const ar = t0.w / t0.h; let w = Math.max(0.5, Math.abs(x1 - x0)), h = Math.max(0.5, Math.abs(y1 - y0));
+    if (w / ar > h) h = +(w / ar).toFixed(2); else w = +(h * ar).toFixed(2);
+    if (L) x0 = x1 - w; else x1 = x0 + w;
+    if (T) y0 = y1 - h; else y1 = y0 + h;
+  }
+  TR.x = +Math.min(x0, x1).toFixed(2); TR.y = +Math.min(y0, y1).toFixed(2);
+  TR.w = Math.max(0.5, +Math.abs(x1 - x0).toFixed(2)); TR.h = Math.max(0.5, +Math.abs(y1 - y0).toFixed(2));
+}
+function showTrProps() { for (const k of ["x", "y", "w", "h"]) { const el = $("tr" + k); if (el) el.value = TR[k]; } }
+function traceProps() {
+  const P = $("props"), nw = trImg?.naturalWidth || 0, nh = trImg?.naturalHeight || 0;
+  P.innerHTML = `
+    <label>Trace</label><div><b>${esc(TR.name)}</b> <span style="color:var(--dim)">${nw}×${nh}</span></div>
+    <label>Place</label><div>x <input type="number" id="trx" step="0.5" style="width:58px" value="${TR.x}"> y <input type="number" id="try" step="0.5" style="width:58px" value="${TR.y}"></div>
+    <label>Size</label><div>w <input type="number" id="trw" step="0.5" min="0.5" style="width:58px" value="${TR.w}"> h <input type="number" id="trh" step="0.5" min="0.5" style="width:58px" value="${TR.h}"></div>
+    <label>Keep shape</label><label><input type="checkbox" id="trar" checked> typing w or h changes the other</label>
+    <label>Fade</label><div><input type="range" id="trop" min="0.05" max="1" step="0.05" value="${TR.op}" style="width:120px"> <span id="tropv">${Math.round(TR.op * 100)}%</span></div>
+    <label>Look</label><label><input type="checkbox" id="trsm" ${TR.smooth === false ? "checked" : ""}> blocky (no smoothing)</label>
+    <div class="full"><button class="btn sm" id="trfit">Fit in grid</button><button class="btn sm" id="trfill">Stretch to grid</button><button class="btn sm" id="tr1">1 image px = 1 px</button></div>
+    <div class="full"><button class="btn sm" id="trrep">Replace image…</button><button class="btn sm" id="trhide">${TR.hidden ? "Show" : "Hide"}</button><button class="btn sm" id="trdel">Remove</button></div>
+    <div class="hint">Drag it on the canvas (Select tool) to move it; blue handles resize (corners keep its shape, Shift frees it; ⌥ for tenth-pixel steps). Arrows nudge, ⌥-arrows by 0.1. It is only a guide: frames and export never include it.</div>`;
+  const set = (k) => () => {
+    const v = +$("tr" + k).value; if (!isFinite(v)) return;
+    if ((k === "w" || k === "h") && $("trar").checked && TR.w && TR.h) { const ar = TR.w / TR.h; if (k === "w") TR.h = +(v / ar).toFixed(2); else TR.w = +(v * ar).toFixed(2); }
+    TR[k] = k === "w" || k === "h" ? Math.max(0.5, v) : v; saveTrace(); drawCanvas(); showTrProps();
+  };
+  for (const k of ["x", "y", "w", "h"]) $("tr" + k).onchange = set(k);
+  $("trop").oninput = () => { TR.op = +$("trop").value; $("tropv").textContent = Math.round(TR.op * 100) + "%"; drawCanvas(); };
+  $("trop").onchange = saveTrace;
+  $("trsm").onchange = () => { TR.smooth = !$("trsm").checked; saveTrace(); drawCanvas(); };
+  $("trfit").onclick = () => { fitTrace(false); saveTrace(); renderAll(); };
+  $("trfill").onclick = () => { fitTrace(true); saveTrace(); renderAll(); };
+  $("tr1").onclick = () => { if (nw) { TR.w = nw; TR.h = nh; saveTrace(); renderAll(); } };
+  $("trrep").onclick = () => $("trace").click();
+  $("trhide").onclick = () => { TR.hidden = !TR.hidden; if (!TR.hidden) delete TR.hidden; saveTrace(); renderAll(); };
+  $("trdel").onclick = () => { if (!confirm(`Remove the trace image ${TR.name}?`)) return; TR = null; trImg = null; trSel = false; saveTrace(); renderAll(); };
+}
+
+// ---------- the big canvas
+const cv = $("cv"), cx = cv.getContext("2d");
+// zoom: null fits the grid to the column; otherwise screen pixels per sketch pixel (whole numbers keep it crisp)
+let zoomZ = (() => { try { return JSON.parse(localStorage.getItem("rmpui-zoom") || "null"); } catch (e) { return null; } })();
+const wrap = $("cvwrap");
+const zMax = () => Math.max(4, Math.min(64, Math.floor(6000 / Math.max(S.w, S.h))));
+function fitZ() {
+  const aw = Math.max(200, (document.querySelector(".center")?.clientWidth || 600) - 30) - MG, ah = Math.max(200, innerHeight - 250) - MG;
+  return Math.max(4, Math.floor(Math.min(aw / S.w, ah / S.h, 40)));
+}
+// zoomed: a fixed view onto a stage with half a view of room round the grid, so any pixel can sit under the pointer
+let padX = 0, padY = 0;
+function sizeCanvas() {
+  Z = zoomZ ? Math.max(2, Math.min(zMax(), zoomZ)) : fitZ();
+  cv.width = S.w * Z + MG; cv.height = S.h * Z + MG;
+  wrap.classList.toggle("zoomed", !!zoomZ);
+  padX = zoomZ ? Math.round(wrap.clientWidth / 2) : 0; padY = zoomZ ? Math.round(wrap.clientHeight / 2) : 0;
+  $("stage").style.padding = `${padY}px ${padX}px`;
+  $("zVal").textContent = zoomZ ? `${Z}×` : "Fit";
+}
+// zoom about a point on the screen (the pointer), keeping the sketch pixel under it in place
+function setZoom(nz, ax, ay) {
+  const r = wrap.getBoundingClientRect();
+  if (ax == null) { ax = r.left + r.width / 2; ay = r.top + r.height / 2; }
+  const cr = cv.getBoundingClientRect(), px = (ax - cr.left - MG) / Z, py = (ay - cr.top - MG) / Z;
+  zoomZ = nz == null ? null : Math.max(2, Math.min(zMax(), Math.round(nz)));
+  try { localStorage.setItem("rmpui-zoom", JSON.stringify(zoomZ)); } catch (e) {}
+  sizeCanvas();
+  if (zoomZ) {
+    const r2 = wrap.getBoundingClientRect();
+    wrap.scrollLeft = padX + MG + px * Z - (ax - r2.left);
+    wrap.scrollTop = padY + MG + py * Z - (ay - r2.top);
+  }
+  drawCanvas();
+}
+const zStep = (dir) => { const z = zoomZ || Z; return dir > 0 ? Math.max(z + 1, Math.round(z * 1.25)) : Math.min(z - 1, Math.round(z / 1.25)); };
+$("zIn").onclick = () => setZoom(zStep(1));
+$("zOut").onclick = () => setZoom(zStep(-1));
+$("zFit").onclick = () => setZoom(null);
+// ⌘ / Ctrl + wheel, and trackpad pinch (the browser reports it as Ctrl + wheel)
+let wheelAcc = 0;
+wrap.addEventListener("wheel", (e) => {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  e.preventDefault();
+  wheelAcc += e.deltaY;
+  if (Math.abs(wheelAcc) < 8) return;
+  const z = zoomZ || Z, f = Math.exp(-wheelAcc * 0.004);
+  wheelAcc = 0;
+  let nz = Math.round(z * f);
+  if (nz === z) nz = z + (f > 1 ? 1 : -1);
+  setZoom(nz, e.clientX, e.clientY);
+}, { passive: false });
+// Space-drag (or the middle button) pans
+let spaceDown = false, panAt = null;
+addEventListener("keydown", (e) => { if (e.code === "Space" && !["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) { e.preventDefault(); if (!spaceDown) { spaceDown = true; wrap.classList.add("pan"); } } });
+addEventListener("keyup", (e) => { if (e.code === "Space") { spaceDown = false; wrap.classList.remove("pan"); } });
+wrap.addEventListener("pointerdown", (e) => {
+  if (!(spaceDown || e.button === 1)) return;
+  e.preventDefault(); e.stopPropagation();
+  panAt = [e.clientX, e.clientY, wrap.scrollLeft, wrap.scrollTop]; wrap.setPointerCapture(e.pointerId); wrap.classList.add("panning");
+}, true);
+wrap.addEventListener("pointermove", (e) => { if (!panAt) return; e.stopPropagation(); wrap.scrollLeft = panAt[2] - (e.clientX - panAt[0]); wrap.scrollTop = panAt[3] - (e.clientY - panAt[1]); }, true);
+wrap.addEventListener("pointerup", (e) => { if (!panAt) return; e.stopPropagation(); panAt = null; wrap.classList.remove("panning"); }, true);
+wrap.addEventListener("scroll", () => drawRulers());
+function drawCanvas() {
+  const W = S.w, H = S.h;
+  rulerSnap = null;
+  cx.setTransform(1, 0, 0, 1, 0, 0);
+  cx.fillStyle = "#15171a"; cx.fillRect(0, 0, cv.width, cv.height);
+  cx.translate(MG, MG);
+  cx.fillStyle = "#07090b"; cx.fillRect(0, 0, W * Z, H * Z);
+  if (TR && trImg && !TR.hidden) { cx.globalAlpha = TR.op; cx.imageSmoothingEnabled = TR.smooth !== false; cx.drawImage(trImg, TR.x * Z, TR.y * Z, TR.w * Z, TR.h * Z); cx.globalAlpha = 1; cx.imageSmoothingEnabled = true; }
+  if (mp) drawPickUnder(W, H);
+  else if ($("onion").checked) {
+    const order = sorted(), at = order.findIndex(([, i]) => i === cur);
+    for (const [d, col] of [[-1, "rgba(255,95,95,.28)"], [1, "rgba(95,200,255,.22)"]]) {
+      const n = order[at + d];
+      if (!n) continue;
+      const g = K.draw(vis(n[0].shapes), W, H);
+      cx.fillStyle = col;
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (g[y * W + x]) cx.fillRect(x * Z + 1, y * Z + 1, Z - 2, Z - 2);
+    }
+  }
+  const g = K.draw(vis(mp ? mp.now || key().shapes : key().shapes), W, H);
+  cx.fillStyle = "#dfeeff";
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (g[y * W + x]) cx.fillRect(x * Z + 1, y * Z + 1, Z - 2, Z - 2);
+  for (let i = 0; i <= W; i++) { cx.strokeStyle = i % 8 ? "#161b21" : "#26303a"; cx.beginPath(); cx.moveTo(i * Z + 0.5, 0); cx.lineTo(i * Z + 0.5, H * Z); cx.stroke(); }
+  for (let j = 0; j <= H; j++) { cx.strokeStyle = j % 8 ? "#161b21" : "#26303a"; cx.beginPath(); cx.moveTo(0, j * Z + 0.5); cx.lineTo(W * Z, j * Z + 0.5); cx.stroke(); }
+  if (hoverPx && hoverPx[0] >= 0 && hoverPx[1] >= 0 && hoverPx[0] < W && hoverPx[1] < H) { cx.strokeStyle = "#ffb35f"; cx.lineWidth = 1; cx.strokeRect(hoverPx[0] * Z + 0.5, hoverPx[1] * Z + 0.5, Z - 1, Z - 1); }
+  if (mp) { drawPickOver(); drawRulers(); return; }
+  const P = (p) => [(p[0] + 0.5) * Z, (p[1] + 0.5) * Z];
+  for (const st of [lastRaw, raw]) if (st && st.length > 1) {
+    cx.strokeStyle = "rgba(255,255,255,.35)"; cx.lineWidth = 2; cx.beginPath();
+    st.forEach((p, i) => { const [x, y] = P(p); i ? cx.lineTo(x, y) : cx.moveTo(x, y); }); cx.stroke();
+  }
+  if (pencil) {
+    cx.fillStyle = pencil.erase ? "rgba(255,95,95,.8)" : "rgba(255,179,95,.8)";
+    for (const [x, y] of pencil.pts.values()) cx.fillRect(x * Z + 1, y * Z + 1, Z - 2, Z - 2);
+  }
+  if (pend) {
+    const pts = hover ? pend.concat([hover]) : pend;
+    const g2 = K.draw([{ kind: "poly", pts, closed: false }], W, H);
+    cx.fillStyle = "rgba(255,179,95,.55)";
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (g2[y * W + x]) cx.fillRect(x * Z + 1, y * Z + 1, Z - 2, Z - 2);
+    pend.forEach((q, i) => { const [x, y] = P(q); cx.strokeStyle = "#ffb35f"; cx.lineWidth = 2; cx.strokeRect(x - Z / 2 + 1, y - Z / 2 + 1, Z - 2, Z - 2); if (i === 0) { cx.beginPath(); cx.arc(x, y, Z * 0.7, 0, Math.PI * 2); cx.stroke(); } });
+  }
+  for (const s of vis(key().shapes)) {
+    const on = isSel(s.id);
+    if (on && s.kind === "pixels") { cx.strokeStyle = "#ffb35f"; cx.lineWidth = 1; for (const [x, y] of s.pts) cx.strokeRect(x * Z + 2.5, y * Z + 2.5, Z - 5, Z - 5); continue; }
+    if (!$("vec").checked && !on) continue;
+    cx.strokeStyle = on ? "#ffb35f" : "rgba(255,179,95,.35)"; cx.lineWidth = on ? 2 : 1; cx.beginPath();
+    if (s.kind === "line") { cx.moveTo(...P(s.a)); cx.lineTo(...P(s.b)); }
+    else if (s.kind === "circle") { const [x, y] = P(s.c); cx.arc(x, y, s.r * Z, 0, Math.PI * 2); }
+    else if (s.kind === "arc") { const [x, y] = P(s.c); cx.arc(x, y, s.r * Z, Math.min(s.a0, s.a0 + s.sw), Math.max(s.a0, s.a0 + s.sw)); }
+    else if (s.kind === "rect") { const [x0, y0] = P([s.x0, s.y0]), [x1, y1] = P([s.x1, s.y1]); cx.rect(x0, y0, x1 - x0, y1 - y0); }
+    else { s.pts.forEach((p, i) => (i ? cx.lineTo(...P(p)) : cx.moveTo(...P(p)))); if (s.closed) cx.closePath(); }
+    cx.stroke();
+    if (tool === "edit" && ((on && !multi.size) || sel == null)) for (const h of K.handles(s)) {
+      const [x, y] = P(h); cx.fillStyle = on ? "#ffb35f" : "rgba(255,179,95,.5)"; cx.fillRect(x - 4, y - 4, 8, 8);
+    }
+  }
+  if (TR && trSel && !TR.hidden) {   // the selected trace image: its frame and 8 handles
+    cx.strokeStyle = "#5fb3ff"; cx.lineWidth = 1.5; cx.setLineDash([6, 3]); cx.strokeRect(TR.x * Z, TR.y * Z, TR.w * Z, TR.h * Z); cx.setLineDash([]);
+    if (tool === "edit") for (const [x, y] of trHandles()) { cx.fillStyle = "#5fb3ff"; cx.fillRect(x * Z - 4, y * Z - 4, 8, 8); }
+  }
+  if (drag && drag.kind === "box" && !boxCells(drag).small) {
+    const c = boxCells(drag);
+    cx.setLineDash([5, 4]); cx.strokeStyle = "#5fb3ff"; cx.lineWidth = 1.5; cx.fillStyle = "rgba(95,179,255,.08)";
+    cx.fillRect(c.x0 * Z, c.y0 * Z, (c.x1 - c.x0 + 1) * Z, (c.y1 - c.y0 + 1) * Z);
+    cx.strokeRect(c.x0 * Z + 0.75, c.y0 * Z + 0.75, (c.x1 - c.x0 + 1) * Z - 1.5, (c.y1 - c.y0 + 1) * Z - 1.5); cx.setLineDash([]);
+  }
+  drawRulers();
+}
+// the selection box in whole pixels (both corners' pixels inside)
+function boxCells(d) {
+  const r = (v) => Math.round(v), x0 = Math.min(r(d.a[0]), r(d.b[0])), x1 = Math.max(r(d.a[0]), r(d.b[0])), y0 = Math.min(r(d.a[1]), r(d.b[1])), y1 = Math.max(r(d.a[1]), r(d.b[1]));
+  return { x0, y0, x1, y1, small: Math.hypot(d.b[0] - d.a[0], d.b[1] - d.a[1]) * Z < 6 };
+}
+// the objects the box holds: every pixel inside (or, with ⌥, any pixel); erasers (white-outs) count too
+function boxSelect() {
+  const c = boxCells(drag), inside = ([x, y]) => x >= c.x0 && x <= c.x1 && y >= c.y0 && y <= c.y1;
+  const got = vis(key().shapes).filter((s) => { const px = K.raster(s); return px.length && (drag.touch ? px.some(inside) : px.every(inside)); }).map((s) => s.id);
+  const base = drag.add && drag.sel0 != null ? [drag.sel0, ...drag.multi0] : [];
+  const all = [...new Set([...base, ...got])];
+  sel = all.length ? (base.length ? base[0] : all[all.length - 1]) : null;
+  multi = new Set(all.filter((id) => id !== sel));
+}
+// column numbers along the top, row numbers down the left, pinned to the visible edges when zoomed in and scrolled
+// (every one when they fit, else every 2 / 4 / 8)
+let rulerSnap = null;
+function drawRulers() {
+  // the part of the canvas in view, in canvas pixels
+  const W = S.w, H = S.h, sl = Math.max(0, wrap.scrollLeft - padX), st = Math.max(0, wrap.scrollTop - padY);
+  const vw = Math.min(cv.width, wrap.scrollLeft - padX + wrap.clientWidth) - sl, vh = Math.min(cv.height, wrap.scrollTop - padY + wrap.clientHeight) - st;
+  cx.setTransform(1, 0, 0, 1, 0, 0);
+  if (vw <= 0 || vh <= 0) return;
+  if (rulerSnap) { cx.putImageData(rulerSnap.top, rulerSnap.tx, rulerSnap.ty); cx.putImageData(rulerSnap.left, rulerSnap.lx, rulerSnap.ly); }
+  // keep what the bands cover, to put back when they move
+  // the bands start a pixel early (scrolling can leave a fraction of a pixel showing at the edge)
+  const bx = Math.max(0, Math.floor(sl) - 1), by = Math.max(0, Math.floor(st) - 1);
+  const tw = Math.min(vw + 2, cv.width - bx), lh = Math.min(vh + 2, cv.height - by), bw = Math.round(sl - bx) + MG, bh = Math.round(st - by) + MG;
+  rulerSnap = tw > 0 && lh > 0 ? { top: cx.getImageData(bx, by, tw, bh), tx: bx, ty: by, left: cx.getImageData(bx, by, bw, lh), lx: bx, ly: by } : null;
+  cx.fillStyle = "#15171a"; cx.fillRect(bx, by, tw, bh); cx.fillRect(bx, by, bw, lh);
+  const every = Z >= 14 ? 1 : Z >= 8 ? 2 : Z >= 5 ? 4 : 8;
+  cx.font = `${Math.min(11, Math.max(9, Z * 0.5))}px ui-monospace, Menlo, monospace`; cx.textAlign = "center"; cx.textBaseline = "middle";
+  for (let i = 0; i < W; i++) {
+    const x = MG + (i + 0.5) * Z;
+    if (x < sl + MG || x > sl + vw) continue;
+    if (i % every === 0 || (hoverPx && hoverPx[0] === i)) { cx.fillStyle = hoverPx && hoverPx[0] === i ? "#ffb35f" : "#6b737c"; cx.fillText(String(i), x, st + MG / 2); }
+  }
+  for (let j = 0; j < H; j++) {
+    const y = MG + (j + 0.5) * Z;
+    if (y < st + MG || y > st + vh) continue;
+    if (j % every === 0 || (hoverPx && hoverPx[1] === j)) { cx.fillStyle = hoverPx && hoverPx[1] === j ? "#ffb35f" : "#6b737c"; cx.fillText(String(j), sl + MG / 2, y); }
+  }
+}
+const toPx = (e) => { const r = cv.getBoundingClientRect(); return [((e.clientX - r.left) * (cv.width / r.width) - MG) / Z - 0.5, ((e.clientY - r.top) * (cv.height / r.height) - MG) / Z - 0.5]; };
+// the shape under the pointer: the nearest visible one, the topmost on a tie; erasers (white-outs) only when nothing
+// visible is there (select those from the Objects list)
+function hitShape(p) {
+  let best = null, bd = 1.3, eraser = null, ed = 1.3;
+  for (const s of vis(key().shapes).reverse()) for (const [x, y] of K.raster(s)) {
+    const d = Math.hypot(x - p[0], y - p[1]);
+    if (s.ink === 0) { if (d < ed) { ed = d; eraser = s; } } else if (d < bd) { bd = d; best = s; }
+  }
+  return best || eraser;
+}
+function hitHandle(p) {
+  for (const s of vis([findSel(), ...key().shapes].filter(Boolean))) { const H = K.handles(s); for (let i = 0; i < H.length; i++) if (Math.hypot(H[i][0] - p[0], H[i][1] - p[1]) < 0.9) return { s, i }; }
+  return null;
+}
+cv.addEventListener("pointerdown", (e) => {
+  if (mp) { const id = mpHit(toPx(e)); if (id != null) mpChoose(id, e.shiftKey); else status("click a blue object: those start in key " + mp.hi.v); return; }
+  cv.setPointerCapture(e.pointerId);
+  const p = toPx(e);
+  if (tool === "draw" && kind === "pixels") { pencil = { erase: e.altKey, pts: new Map(), last: [Math.round(p[0]), Math.round(p[1])] }; penAdd(pencil.last, pencil.last); drawCanvas(); return; }
+  if (tool === "draw") { raw = [p]; lastRaw = null; return; }
+  if (TR && trSel && !TR.hidden) {   // the selected trace image: its handles, then its body, come first
+    const ep = [p[0] + 0.5, p[1] + 0.5], hi = trHit(ep);
+    // a handle always; the body unless a shape on top of it takes the click
+    if (hi != null && (hi >= 0 || !hitShape(p))) { drag = { kind: hi < 0 ? "trm" : "trh", i: hi, e0: ep, t0: { ...TR } }; return; }
+    trSel = false;
+  }
+  const h = !e.shiftKey && !e.altKey && hitHandle(p);
+  if (h && multi.size && isSel(h.s.id)) {   // several selected: grabbing one of them moves them all; a click alone selects just it
+    push(); drag = { kind: "move", at: [Math.round(p[0]), Math.round(p[1])], from: [Math.round(p[0]), Math.round(p[1])], moved: false, only: h.s.id }; renderAll(); return;
+  }
+  if (h) { push(); sel = h.s.id; multi = new Set(); drag = { kind: "handle", i: h.i }; renderAll(); return; }
+  const s = hitShape(p);
+  if (!s) {   // on empty space: a selection box
+    drag = { kind: "box", a: p, b: p, add: e.shiftKey, touch: e.altKey, sel0: sel, multi0: new Set(multi) };
+    drawCanvas(); return;
+  }
+  if (e.altKey && O(s.id)?.group != null) {   // ⌥-click: the whole group, ready to drag
+    selectGroup(O(s.id).group, e.shiftKey); push();
+    drag = { kind: "move", at: [Math.round(p[0]), Math.round(p[1])], from: [Math.round(p[0]), Math.round(p[1])], moved: false, only: null };
+    renderAll(); return;
+  }
+  const wasSel = isSel(s.id) && !e.shiftKey;
+  if (e.shiftKey || !isSel(s.id)) pick(s.id, e.shiftKey);
+  // on a group: dragging moves the group; a click without dragging selects just this one
+  if (isSel(s.id)) { push(); drag = { kind: "move", at: [Math.round(p[0]), Math.round(p[1])], from: [Math.round(p[0]), Math.round(p[1])], moved: false, only: wasSel && multi.size ? s.id : null }; }
+  renderAll();
+});
+// double-click a grouped shape: select its whole group
+cv.addEventListener("dblclick", (e) => {
+  if (tool !== "edit" || mp) return;
+  const s = hitShape(toPx(e)), gid = s && O(s.id)?.group;
+  if (gid == null) return;
+  selectGroup(gid); renderAll();
+  status(`<b>${esc(G(gid).name)}</b> selected (${members(gid).length} objects): drag, nudge, copy or set their looks together`);
+});
+$("grpBtn").onclick = groupSel;
+$("grpTool").onclick = groupSel;
+$("ungrpBtn").onclick = ungroupSel;
+// the tag beside the pointer: where you are, and while drawing where you started (and a rectangle's size)
+let lastClient = null;
+function showTag() {
+  const t = $("ptag");
+  if (!lastClient || !hoverPx || panAt || spaceDown || !$("tagOn").checked) { t.style.display = "none"; return; }
+  const q = (p) => `<b>${p[0]},${p[1]}</b>`;
+  let h;
+  if (pend) h = `${q(hoverPx)} <i>corner ${pend.length + 1}</i>`;
+  else if (raw && raw.length) {
+    const a = raw[0].map(Math.round), b = hoverPx;
+    h = `${q(a)} <i>→</i> ${q(b)}`;
+    if (kind === "rect") h += ` <i>${Math.abs(b[0] - a[0]) + 1}×${Math.abs(b[1] - a[1]) + 1}</i>`;
+    else if (kind === "line" || kind === "auto") h += ` <i>Δ${b[0] - a[0]},${b[1] - a[1]}</i>`;
+  } else if (drag && drag.kind === "move" && drag.from) h = `${q(hoverPx)} <i>moved ${hoverPx[0] - drag.from[0]},${hoverPx[1] - drag.from[1]}</i>`;
+  else h = q(hoverPx);
+  t.innerHTML = h;
+  t.style.display = "block";
+  // beside the pointer, flipped near the window's edges
+  const w = t.offsetWidth, hh = t.offsetHeight;
+  let x = lastClient[0] + 16, y = lastClient[1] + 18;
+  if (x + w > innerWidth - 4) x = lastClient[0] - w - 12;
+  if (y + hh > innerHeight - 4) y = lastClient[1] - hh - 12;
+  t.style.left = x + "px"; t.style.top = y + "px";
+}
+function showCoord() {
+  showTag();
+  const c = $("coord"), at = (q) => `(${q[0]}, ${q[1]})`;
+  if (pend) c.innerHTML = `corners ${pend.map(at).join(" ")}${hoverPx ? ` → <b>${at(hoverPx)}</b>` : ""}`;
+  else if (raw && raw.length) c.innerHTML = `from <b>${at(raw[0].map(Math.round))}</b> to <b>${at(hoverPx || raw[raw.length - 1].map(Math.round))}</b>`;
+  else c.innerHTML = hoverPx ? `pixel <b>${at(hoverPx)}</b> · column ${hoverPx[0]}, row ${hoverPx[1]}` : "&nbsp;";
+}
+cv.addEventListener("pointerleave", () => { hoverPx = null; lastClient = null; showCoord(); drawCanvas(); });
+function penAdd(a, b) { for (const q of K.raster({ kind: "line", a, b })) pencil.pts.set(q[0] + "," + q[1], q); }
+function commitPencil() {
+  const P = [...pencil.pts.values()].filter(([x, y]) => x >= 0 && y >= 0 && x < S.w && y < S.h), erase = pencil.erase;
+  pencil = null;
+  const tgt = findSel();
+  if (tgt && tgt.kind === "pixels") {   // paint into the selected pencil object
+    push();
+    const ks = new Set(P.map((q) => q[0] + "," + q[1]));
+    applyObj(sel, (s) => {
+      const have = new Map(s.pts.map((q) => [q[0] + "," + q[1], q]));
+      if (erase) for (const k of ks) have.delete(k); else for (const q of P) have.set(q[0] + "," + q[1], q);
+      s.pts = [...have.values()].sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+    });
+    status(`${erase ? "erased from" : "painted into"} <b>${esc(O(sel).name)}</b> (Esc, then paint, for a new object)`);
+    changed(); return;
+  }
+  if (erase || !P.length) { status("⌥-drag erases from the selected pencil object: select one first"); drawCanvas(); return; }
+  commit({ kind: "pixels", pts: P }, P);
+  status(`new <b>pixels</b> object: it stays selected, so more strokes add to it (Esc for a new one; ⌥-drag erases)`);
+}
+cv.addEventListener("pointermove", (e) => {
+  const p = toPx(e);
+  lastClient = [e.clientX, e.clientY];
+  hoverPx = [Math.round(p[0]), Math.round(p[1])];
+  showCoord();
+  if (pencil) { const q = [Math.round(p[0]), Math.round(p[1])]; penAdd(pencil.last, q); pencil.last = q; drawCanvas(); return; }
+  if (!raw && !pend && !drag) { drawCanvas(); return; }
+  if (raw) { raw.push(p); drawCanvas(); return; }
+  if (pend) { hover = [Math.round(p[0]), Math.round(p[1])]; drawCanvas(); return; }
+  if (drag && (drag.kind === "trm" || drag.kind === "trh")) { trDrag([p[0] + 0.5, p[1] + 0.5], e); drawCanvas(); showTrProps(); return; }
+  if (tool === "edit" && TR && trSel && !drag) { const hi = trHit([p[0] + 0.5, p[1] + 0.5]); cv.style.cursor = hi == null ? "default" : hi < 0 ? "move" : ["nwse-resize", "nesw-resize", "nwse-resize", "nesw-resize", "ns-resize", "ew-resize", "ns-resize", "ew-resize"][hi]; }
+  if (drag && drag.kind === "box") { drag.b = p; drag.touch = e.altKey; boxSelect(); drawCanvas(); renderObjs(); return; }
+  if (!drag || sel == null) return;
+  if (drag.kind === "handle") applyObj(sel, (s) => K.setHandle(s, drag.i, p));
+  else {
+    const q = [Math.round(p[0]), Math.round(p[1])], dx = q[0] - drag.at[0], dy = q[1] - drag.at[1];
+    if (dx || dy) { for (const id of selIds()) applyObj(id, (s) => K.moveShape(s, dx, dy)); drag.at = q; drag.moved = true; }
+  }
+  drawCanvas(); renderFrames(); renderPreview();
+});
+const KEEP = ["id", "fill", "dotted", "ink", "rad", "raw", "spin"];
+cv.addEventListener("pointermove", (e) => {
+  if (!mp) return;
+  const h = mpHit(toPx(e));
+  if (h !== mp.hover) { mp.hover = h; cv.style.cursor = h != null ? "pointer" : "default"; drawCanvas(); }
+});
+cv.addEventListener("pointerup", () => {
+  if (pencil) { commitPencil(); return; }
+  if (raw) {
+    const stroke = raw; raw = null;
+    let len = 0; for (let i = 1; i < stroke.length; i++) len += Math.hypot(stroke[i][0] - stroke[i - 1][0], stroke[i][1] - stroke[i - 1][1]);
+    if (kind === "poly" && len * Z < 10) {   // a click (under 10 screen pixels of wobble)   // a click: the next corner of a polygon; the first corner again closes it
+      const p = [Math.round(stroke[0][0]), Math.round(stroke[0][1])];
+      if (pend && pend.length >= 3 && p[0] === pend[0][0] && p[1] === pend[0][1]) finishPoly(true);
+      else if (!pend || p[0] !== pend[pend.length - 1][0] || p[1] !== pend[pend.length - 1][1]) { pend = (pend || []).concat([p]); status(`corner ${pend.length}: click the next one · click the first corner to close · Enter to leave it open · Esc to cancel`); }
+      showCoord(); drawCanvas();
+      return;
+    }
+    if (stroke.length) commit(K.fit(stroke, anchors(), kind === "auto" ? null : kind), stroke);
+  }
+  if (drag && (drag.kind === "trm" || drag.kind === "trh")) { drag = null; saveTrace(); renderAll(); return; }
+  if (drag && drag.kind === "box") {
+    const d = drag; drag = null;
+    if (boxCells(d).small) { if (!d.add) { sel = null; multi = new Set(); } else { sel = d.sel0; multi = d.multi0; } }
+    else { const n = selIds().length; status(n ? `${n} object${n > 1 ? "s" : ""} selected${n > 1 ? ": ⌘G groups them" : ""} · Shift-drag adds more · ⌥ takes ones the box only touches` : "nothing inside the box (⌥-drag takes objects the box only touches)"); }
+    renderAll(); return;
+  }
+  if (drag) {
+    if (drag.kind === "move" && !drag.moved) { hist.pop(); if (drag.only != null) pick(drag.only, false); }   // a click, not a move
+    drag = null; changed();
+  }
+});
+function finishPoly(closed) {
+  const P = pend; pend = null;
+  if (!P || P.length < 2) { drawCanvas(); return; }
+  commit({ kind: "poly", pts: P, closed: closed && P.length > 2 }, P);
+}
+// a fitted shape becomes a new object, or the selected one's shape in this key (Redraw)
+function commit(f, stroke) {
+  push();
+  const rawR = stroke.map((q) => q.map((v) => +v.toFixed(2)));
+  if (redraw && sel != null && O(sel)) {   // the selected object takes the stroke's shape in this key (added here if missing)
+    const put = (s) => { for (const k of Object.keys(s)) if (!KEEP.includes(k)) delete s[k]; Object.assign(s, f, { id: sel, raw: rawR }); };
+    if (!findSel()) key().shapes.push(Object.assign(cloneS(nearestShape(sel) || f), { id: sel }));
+    applyObj(sel, put);
+    setRedraw(false);
+    status(`redrew <b>${esc(O(sel).name)}</b> as a ${f.kind}`);
+  } else {
+    f.raw = rawR;
+    if ($("fillnew").checked && (f.kind === "circle" || f.kind === "rect" || f.closed)) f.fill = 1;
+    const linked = $("newlink").checked, id = newObj(f, { linked });
+    for (const k of linked ? S.keys : [key()]) k.shapes.push(cloneS(f));
+    sel = id; multi = new Set();
+    status(`new <b>${f.kind}</b> ${linked ? "on every key (linked)" : "in this key only: it comes out of nothing"}`);
+  }
+  lastRaw = stroke;
+  changed();
+}
+function status(h) { $("status").innerHTML = h; }
+
+// ---------- keys and objects
+function thumb(shapes, s = 2) {
+  const c = document.createElement("canvas"); c.width = S.w * s; c.height = S.h * s;
+  const x = c.getContext("2d"), g = K.draw(shapes, S.w, S.h); x.fillStyle = "#dfeeff";
+  for (let j = 0; j < S.h; j++) for (let i = 0; i < S.w; i++) if (g[j * S.w + i]) x.fillRect(i * s, j * s, s, s);
+  return c;
+}
+function renderKeys() {
+  const box = $("keys"); box.innerHTML = "";
+  for (const [k, i] of sorted()) {
+    const d = document.createElement("div"); d.className = "key" + (i === cur ? " on" : "");
+    const th = thumb(k.shapes, Math.max(1, Math.min(2, Math.floor(56 / S.w))));
+    const inp = Object.assign(document.createElement("input"), { type: "number", min: 0, max: 127, value: k.v, title: "param value" });
+    inp.onclick = (e) => e.stopPropagation();
+    inp.onchange = () => { push(); k.v = Math.max(0, Math.min(127, inp.value | 0)); changed(); };
+    const x = Object.assign(document.createElement("button"), { className: "x", textContent: "×", title: "delete key" });
+    x.onclick = (e) => { e.stopPropagation(); if (S.keys.length < 2) return; push();
+      for (const q of k.shapes) if (!S.keys.some((o) => o !== k && inKey(o, q.id)) && O(q.id)) O(q.id).park = cloneS(q);   // kept, to put back later
+      S.keys.splice(i, 1); cur = 0; changed(); };
+    d.append(th, inp, x);
+    d.onclick = () => { cur = i; lastRaw = null; renderAll(); };
+    box.append(d);
+  }
+}
+// the morph mark on a list row: green - morphs into something; faint - could, nothing set; orange - its choice can't
+// happen now; blank - can't morph (hover says why). Clicking it picks, with the preview.
+const MORPH_SVG = `<svg viewBox="0 0 16 12" width="15" height="11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 7c2-4 4-4 5 0s3 4 5 0"/><path d="M10 3.5l2.2 3.2 3-1.8"/></svg>`;
+function morphState(id) {
+  const o = O(id), ok = targetsFor(id), plain = (h) => h.replace(/<[^>]+>/g, "");
+  if (o.into != null && ok.has(o.into)) return ["set", `morphs into ${O(o.into).name} (at key ${ok.get(o.into).v}): click to change it`];
+  if (o.into != null && O(o.into)) return ["bad", `set to morph into ${O(o.into).name}, but that can't happen now: click to pick again`];
+  if (ok.size) return ["can", `can morph into ${ok.size === 1 ? O([...ok.keys()][0]).name : `${ok.size} objects`}: click to pick one`];
+  const from = S.objs.filter((q) => q.into === id && targetsFor(q.id).has(id));
+  if (from.length) return ["tgt", `${from.map((q) => q.name).join(", ")} morph${from.length > 1 ? "" : "s"} into this one`];
+  return ["no", "can't morph: " + plain(whyNoMorph(id).why)];
+}
+function morphBtn(ids, g) {
+  const st = ids.map(morphState), rank = { set: 4, bad: 3, can: 2, tgt: 1, no: 0 }, best = st.reduce((a, b) => (rank[b[0]] > rank[a[0]] ? b : a));
+  const b = document.createElement("button"); b.className = "ico morph " + best[0]; b.innerHTML = MORPH_SVG;
+  b.title = g ? (best[0] === "no" ? "nothing in this group can morph" : `${st.filter((x) => x[0] === "set").length} of ${ids.length} morph into something${st.some((x) => x[0] === "can") ? "; others could" : ""}: click to pick for the group`) : best[1];
+  b.onclick = (e) => {
+    e.stopPropagation();
+    if (best[0] === "tgt" && !g) { const q = S.objs.find((q) => q.into === ids[0]); sel = q.id; multi = new Set(); renderAll(); return startPick(); }   // pick from the one that morphs into it
+    if (g) selectGroup(g.id); else { sel = ids[0]; multi = new Set(); }
+    renderAll(); startPick();
+  };
+  return b;
+}
+function renderObjs() {
+  const ul = $("objs"); ul.innerHTML = ""; ul.classList.toggle("picking", !!mp);
+  const mc = new Set(mpCands());
+  let dragIds = null, dragGroup = null;   // what is being dragged in the list
+  const eyeBtn = (hid, what) => `<button class="ico eye ${hid ? "" : "on"}" title="${hid ? `hidden while editing: click to show ${what}` : `click to hide ${what} while editing (the frames keep it)`}">${hid ? "◡" : "👁"}</button>`;
+  // a drop on a row: the top half puts it in front (above), the bottom half behind
+  const dropZone = (li, onDrop) => {
+    li.addEventListener("dragover", (e) => { if (!dragIds) return; e.preventDefault(); const r = li.getBoundingClientRect(), up = e.clientY < r.top + r.height / 2; li.classList.toggle("dropup", up); li.classList.toggle("dropdn", !up); });
+    li.addEventListener("dragleave", () => li.classList.remove("dropup", "dropdn"));
+    li.addEventListener("drop", (e) => {
+      e.preventDefault(); li.classList.remove("dropup", "dropdn");
+      if (!dragIds) return;
+      const r = li.getBoundingClientRect();
+      onDrop(e.clientY < r.top + r.height / 2);
+    });
+  };
+  const objRow = (o, inGroup) => {
+    const here = !!inKey(key(), o.id), s = inKey(key(), o.id) || nearestShape(o.id);
+    const li = document.createElement("li"); li.className = "obj" + (isSel(o.id) ? " on" : "") + (here ? "" : " absent") + (inGroup ? " member" : "") + (hiddenObj(o.id) ? " hid" : "");
+    li.draggable = true;
+    li.innerHTML = `<button class="ico here ${here ? "on" : ""}" title="${here ? "in this key: click to take it out of this key" : "not in this key: click to put it back"}">${here ? "●" : "○"}</button>` +
+      `<span class="nm">${esc(o.name)}</span><span class="k" ${s ? "" : `title="its shape is gone from every key: ⌘Z, or select it and Redraw it here"`}>${s ? s.kind : "no shape"}</span>` + eyeBtn(!!o.hidden, "it") +
+      `<button class="ico link ${o.linked ? "on" : ""}" title="${o.linked ? "linked: the same in every key" : "unlinked: can differ per key"}">🔗</button>`;
+    li.append(morphBtn([o.id]));
+    const [dot, , , eye, link] = li.children;
+    dot.onclick = (e) => { e.stopPropagation(); push(); toggleHere(o.id); sel = o.id; multi = new Set(); changed(); };
+    eye.onclick = (e) => { e.stopPropagation(); o.hidden = !o.hidden; if (!o.hidden) delete o.hidden; persist(); renderAll(); };
+    link.onclick = (e) => { e.stopPropagation(); push(); setLinked(o.id, !o.linked); sel = o.id; multi = new Set(); changed(); };
+    li.onclick = (e) => { if (mp) return mpChoose(o.id, e.shiftKey); pick(o.id, e.shiftKey); renderAll(); };
+    if (mp) {
+      li.draggable = false;
+      if (mp.src.includes(o.id)) li.classList.add("msrc");
+      else if (mc.has(o.id)) li.classList.add(mp.T.includes(o.id) ? "mpick" : "mcand");
+      else { li.classList.add("mno"); li.title = mpWhy(o.id).replace(/<[^>]+>/g, ""); }
+    }
+    li.ondblclick = (e) => { e.stopPropagation(); const n = prompt("Object name", o.name); if (n) { push(); o.name = n; changed(); } };
+    li.addEventListener("dragstart", (e) => { dragIds = isSel(o.id) ? selIds() : [o.id]; dragGroup = null; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", ""); });
+    dropZone(li, (up) => dropObjs(dragIds, o.id, up, dragGroup != null ? "edge" : o.group ?? null));
+    return li;
+  };
+  const groupRow = (g, ids) => {
+    const os = ids.map(O), allHere = ids.every((id) => inKey(key(), id)), someHere = ids.some((id) => inKey(key(), id));
+    const allLinked = os.every((o) => o.linked), allSel = ids.every(isSel);
+    const li = document.createElement("li"); li.className = "obj grp" + (allSel ? " on" : "") + (g.hidden ? " hid" : "");
+    li.draggable = true;
+    li.innerHTML = `<button class="ico tw" title="${g.collapsed ? "show its objects" : "fold it"}">${g.collapsed ? "▸" : "▾"}</button>` +
+      `<button class="ico here ${allHere ? "on" : someHere ? "some" : ""}" title="${allHere ? "all in this key: click to take them out of this key" : "click to put the missing ones back"}">${allHere ? "●" : someHere ? "◐" : "○"}</button>` +
+      `<span class="nm">${esc(g.name)}</span><span class="k">${ids.length}</span>` + eyeBtn(!!g.hidden, "the group") +
+      `<button class="ico link ${allLinked ? "on" : ""}" title="${allLinked ? "all linked: click to unlink them" : "click to link them all"}">🔗</button>`;
+    li.append(morphBtn(ids, g));
+    const [tw, dot, , , eye, link] = li.children;
+    tw.onclick = (e) => { e.stopPropagation(); g.collapsed = !g.collapsed; if (!g.collapsed) delete g.collapsed; persist(); renderObjs(); };
+    dot.onclick = (e) => { e.stopPropagation(); push(); for (const id of ids) if (allHere === !!inKey(key(), id)) toggleHere(id); selectGroup(g.id); changed(); };
+    eye.onclick = (e) => { e.stopPropagation(); g.hidden = !g.hidden; if (!g.hidden) delete g.hidden; persist(); renderAll(); };
+    link.onclick = (e) => { e.stopPropagation(); push(); for (const id of ids) setLinked(id, !allLinked); selectGroup(g.id); changed(); };
+    li.onclick = (e) => { if (mp) return mpChooseGroup(g.id, e.shiftKey); selectGroup(g.id, e.shiftKey); renderAll(); };
+    if (mp) { li.draggable = false; li.classList.add(ids.some((id) => mc.has(id)) ? (ids.filter((id) => mc.has(id)).every((id) => mp.T.includes(id)) ? "mpick" : "mcand") : ids.every((id) => mp.src.includes(id)) ? "msrc" : "mno"); }
+    li.ondblclick = (e) => { e.stopPropagation(); const n = prompt("Group name", g.name); if (n) { push(); g.name = n; changed(); } };
+    li.addEventListener("dragstart", (e) => { dragIds = ids; dragGroup = g.id; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", ""); });
+    // on the header: the top half puts it in front of the group; the bottom half joins the group, at its front
+    dropZone(li, (up) => dragGroup != null ? dropObjs(dragIds, ids[ids.length - 1], up, "edge") : dropObjs(dragIds, ids[ids.length - 1], true, up ? null : g.id));
+    return li;
+  };
+  for (const u of units().reverse()) {   // the top of the list is drawn last (in front)
+    if (u.g == null) { ul.append(objRow(O(u.ids[0]), false)); continue; }
+    const g = G(u.g);
+    ul.append(groupRow(g, u.ids));
+    if (!g.collapsed) for (const id of [...u.ids].reverse()) ul.append(objRow(O(id), true));
+  }
+  if (!S.objs.length) ul.innerHTML = `<li class="obj" style="color:var(--dim)">Nothing yet: draw a stroke.</li>`;
+  if (TR) {   // the trace image, always at the bottom (behind everything)
+    const li = document.createElement("li"); li.className = "obj trace" + (trSel ? " on" : "") + (TR.hidden ? " hid" : "");
+    li.innerHTML = `<span class="ico" style="cursor:default">🖼</span><span class="nm">${esc(TR.name)}</span><span class="k">trace</span>` + eyeBtn(!!TR.hidden, "the trace image") +
+      `<button class="ico" title="remove the trace image">✕</button>`;
+    const [, , , eye, x] = li.children;
+    eye.onclick = (e) => { e.stopPropagation(); TR.hidden = !TR.hidden; if (!TR.hidden) delete TR.hidden; saveTrace(); renderAll(); };
+    x.onclick = (e) => { e.stopPropagation(); if (!confirm(`Remove the trace image ${TR.name}?`)) return; TR = null; trImg = null; trSel = false; saveTrace(); renderAll(); };
+    li.onclick = () => { trSel = true; sel = null; multi = new Set(); if (tool !== "edit") setTool("edit"); renderAll(); status("trace image selected: drag it to move, blue handles resize"); };
+    ul.append(li);
+  }
+}
+$("addkey").onclick = () => {
+  push();
+  const order = sorted(), at = order.findIndex(([, i]) => i === cur), nx = order[at + 1];
+  const v = nx ? Math.round((key().v + nx[0].v) / 2) : Math.min(127, key().v + 32);
+  S.keys.push({ v, shapes: cloneS(key().shapes) });
+  cur = S.keys.length - 1; changed();
+};
+
+// ---------- the selected object
+function setRedraw(on) { redraw = on; const b = $("redrawBtn"); if (b) b.classList.toggle("on", on); }
+function renderProps() {
+  if (trSel && TR) return traceProps();
+  if (mp) return pickProps($("props"));
+  const P = $("props"), o = sel != null ? O(sel) : null;
+  if (!o) { P.innerHTML = `<div class="hint">Nothing selected: click an object in the list, or a shape in Edit.</div>`; return; }
+  const s = findSel(), any = s || nearestShape(sel);
+  const closedKind = any && (any.kind === "circle" || any.kind === "rect" || ((any.kind === "poly" || any.kind === "free") && any.closed));
+  P.innerHTML = `
+    <label>Name</label><input class="txt" id="oname" value="${esc(o.name)}">
+    <label>Linked</label><label><input type="checkbox" id="olink" ${o.linked ? "checked" : ""}> the same in every key</label>
+    <label>Comes / goes</label><select id="oapp">${K.APPEAR.map((a) => `<option value="${a}" ${o.appear === a ? "selected" : ""}>${{ grow: "grows from its centre", draw: "draws itself on", pop: "pops in halfway" }[a]}</option>`).join("")}</select>
+    <label>Morphs into</label><div class="mrow"><select id="ointo">${intoOptions(o)}</select><button class="btn sm" id="opick" title="Pick it on the canvas and see it play before keeping it (M)">Pick… M</button></div>
+    ${s ? `
+    <label>Shape</label><select id="kind">${K.KINDS.map((k) => `<option ${k === s.kind ? "selected" : ""}>${k}</option>`).join("")}</select>
+    <label>Ink</label><select id="ink"><option value="1">draw</option><option value="0" ${s.ink === 0 ? "selected" : ""}>erase (cut out)</option></select>
+    <label>Style</label><div><label><input type="checkbox" id="dotted" ${s.dotted ? "checked" : ""}> dotted</label>${closedKind ? ` <label><input type="checkbox" id="fill" ${s.fill ? "checked" : ""}> filled</label>` : ""}</div>
+    ${s.kind === "line" || s.kind === "arc" ? `<label>Turns</label><select id="spin"><option value="">shortest way</option><option value="cw" ${s.spin === "cw" ? "selected" : ""}>clockwise</option><option value="ccw" ${s.spin === "ccw" ? "selected" : ""}>counter-clockwise</option></select>` : ""}
+    ${s.kind === "rect" ? `<label>Corners</label><select id="rad">${[0, 1, 2, 3].map((r) => `<option ${r === (s.rad || 0) ? "selected" : ""}>${r}</option>`).join("")}</select>` : ""}`
+    : `<div class="hint">Not in this key, so here it ${o.into != null ? "has morphed" : o.appear === "pop" ? "pops" : o.appear === "draw" ? "draws itself" : "grows"} in or out. Put it back as it was in the nearest key, paste it with ⌘V, or Redraw it here.</div>
+    <div class="full"><button class="btn sm on" id="oadd">＋ Put it back in this key</button></div>`}
+    <div class="full"><button class="btn sm" id="redrawBtn">Redraw here (next stroke)</button><button class="btn sm" id="ocopy">Copy ⌘C</button><button class="btn sm" id="opart" title="Keep the selected objects in the library as a part, to drop into any sketch">🧩 Save as part</button><button class="btn sm" id="opaste" ${clip ? "" : "disabled"}>Paste ⌘V</button></div>
+    <div class="full"><button class="btn sm" id="toall">Copy ${multi.size ? `${multi.size + 1} objects ` : ""}to every key</button><button class="btn sm" id="del">Delete ${multi.size ? `${multi.size + 1} objects` : "object"}</button></div>
+    <div class="full"><button class="btn sm" id="up">▲ In front</button><button class="btn sm" id="down">▼ Behind</button></div>`;
+  const gr = o.group != null ? G(o.group) : null;
+  if (gr) P.insertAdjacentHTML("beforeend", `
+    <label>Group</label><input class="txt" id="gname" value="${esc(gr.name)}">
+    <div class="full"><button class="btn sm" id="gsel">Select group</button><button class="btn sm" id="gup">▲ Group in front</button><button class="btn sm" id="gdown">▼ Group behind</button></div>
+    <div class="full"><button class="btn sm" id="gmorph" title="Pick what the whole group morphs into, with a preview (M with the group selected)">Group morphs into… </button></div>
+    <div class="full"><button class="btn sm" id="gout">Take out of group</button><button class="btn sm" id="gungrp">Ungroup</button></div>`);
+  if (unlinked && !unlinked.includes(sel)) unlinked = null;
+  const ul = unlinked && unlinked.filter((id) => O(id) && !O(id).linked && S.keys.some((k) => k !== key() && inKey(k, id)));
+  if (ul && ul.length) {
+    const nk = new Set(ul.flatMap((id) => S.keys.filter((k) => k !== key() && inKey(k, id)))).size, nm = ul.length > 1 ? `These ${ul.length} objects` : `<b>${esc(O(ul[0]).name)}</b>`;
+    P.insertAdjacentHTML("afterbegin", `<div class="notice"><button class="ico" id="ulx" title="keep the copies">✕</button><b>Unlinked</b>
+      <div>${nm} ${ul.length > 1 ? "are" : "is"} still in ${nk} other key${nk > 1 ? "s" : ""}, now as separate copies you can change key by key.</div>
+      <div class="full"><button class="btn sm on" id="ulhere">Only in this key</button><button class="btn sm" id="ulkeep">Keep the copies</button></div></div>`);
+    $("ulhere").onclick = () => onlyHere(ul);
+    $("ulkeep").onclick = $("ulx").onclick = () => { unlinked = null; renderProps(); };
+  }
+  if (multi.size) P.insertAdjacentHTML("afterbegin", `<div class="hint" style="color:var(--sel)"><b>${multi.size + 1} objects selected.</b> Dragging, arrow keys, ⌘C / ⌘V, Delete and the Copy / Delete buttons act on all of them (click one alone to reshape it by its handles); the other settings are for <b>${esc(o.name)}</b>.</div>`);
+  setRedraw(redraw);
+  const meta = (fn) => () => { push(); fn(); changed(); };
+  $("oname").onchange = meta(() => (o.name = $("oname").value || o.name));
+  $("olink").onchange = meta(() => setLinked(o.id, $("olink").checked));
+  $("oapp").onchange = meta(() => (o.appear = $("oapp").value));
+  $("ointo").onchange = meta(() => { if ($("ointo").value === "") delete o.into; else o.into = +$("ointo").value; });
+  $("opick").onclick = startPick;
+  if ($("gmorph")) $("gmorph").onclick = () => { selectGroup(gr.id); startPick(); };
+  if (s) {
+    $("kind").onchange = meta(() => {
+      const f = s.raw ? K.fit(s.raw, anchors(), $("kind").value) : null;
+      if (f) applyObj(sel, (q) => { for (const k of Object.keys(q)) if (!KEEP.includes(k)) delete q[k]; Object.assign(q, f, { id: q.id }); });
+    });
+    // looks (ink, dotted, filled, corners) belong to the object: every key, and every selected object
+    const look = (fn) => meta(() => { for (const id of selIds()) for (const k of S.keys) { const q = inKey(k, id); if (q) fn(q); } });
+    $("ink").onchange = look((q) => (q.ink = +$("ink").value));
+    $("dotted").onchange = look((q) => (q.dotted = $("dotted").checked ? 1 : 0));
+    if ($("fill")) $("fill").onchange = look((q) => { if (q.kind === "circle" || q.kind === "rect" || q.closed) q.fill = $("fill").checked ? 1 : 0; });
+    if ($("spin")) $("spin").onchange = meta(() => { for (const k of S.keys) { const q = inKey(k, sel); if (q) q.spin = $("spin").value || undefined; } });
+    if ($("rad")) $("rad").onchange = look((q) => { if (q.kind === "rect") q.rad = +$("rad").value; });
+  }
+  if ($("oadd")) $("oadd").onclick = () => { const ids = selIds().filter((id) => !inKey(key(), id)); push(); for (const id of ids) toggleHere(id); changed(); status(`${ids.length > 1 ? `${ids.length} objects are` : `<b>${esc(o.name)}</b> is`} back in this key`); };
+  $("redrawBtn").onclick = () => { setRedraw(!redraw); setTool("draw", true); status(`draw <b>${esc(o.name)}</b>'s new shape for this key`); };
+  $("ocopy").onclick = () => { copySel(); renderProps(); };
+  $("opart").onclick = savePart;
+  $("opaste").onclick = paste;
+  $("toall").onclick = meta(() => { for (const id of selIds()) { const src = inKey(key(), id) || nearestShape(id); if (src) putEverywhere(id, src); } });
+  $("del").onclick = () => { const ids = selIds(); if (ids.length > 1 && !confirm(`Delete these ${ids.length} objects from every key?`)) return; push(); for (const id of ids) deleteObj(id); changed(); };
+  // in front / behind: a group's member moves within its group; a loose object hops over whole groups
+  const mv = (d) => meta(() => {
+    if (o.group == null) return moveUnit([o.id], d);
+    const i = S.objs.findIndex((q) => q.id === sel), j = i + d;
+    if (j >= 0 && j < S.objs.length && S.objs[j].group === o.group) [S.objs[i], S.objs[j]] = [S.objs[j], S.objs[i]];
+  });
+  $("up").onclick = mv(1); $("down").onclick = mv(-1);
+  if (gr) {
+    $("gname").onchange = meta(() => (gr.name = $("gname").value || gr.name));
+    $("gsel").onclick = () => { selectGroup(gr.id); renderAll(); };
+    $("gup").onclick = meta(() => moveUnit(members(gr.id), 1));
+    $("gdown").onclick = meta(() => moveUnit(members(gr.id), -1));
+    $("gout").onclick = meta(() => { delete o.group; });
+    $("gungrp").onclick = ungroupSel;
+  }
+}
+
+// ---------- picking what an object (or a group) morphs into, on the canvas, with a live preview before it's kept.
+// A morph happens between two neighbouring keys: the source is in the lower key only, its target in the upper only.
+let mp = null;   // { src: [ids], skipped, lo, hi (keys), cur, T: [target ids], m: Map src -> target, S2 (a throwaway copy
+                 //   with the choice set), now (its shapes at the animated value), hover, t0, raf, lastV }
+const keyPairs = () => { const o = sorted().map(([k]) => k); return o.slice(0, -1).map((k, i) => [k, o[i + 1]]); };
+const endsAt = (id, lo, hi) => !!inKey(lo, id) && !inKey(hi, id);
+const startsAt = (id, lo, hi) => !inKey(lo, id) && !!inKey(hi, id);
+// the objects an object could morph into (ones that start where it ends), each with the key it starts in
+function targetsFor(id) {
+  const out = new Map();
+  for (const [lo, hi] of keyPairs()) if (endsAt(id, lo, hi)) for (const s of hi.shapes) if (startsAt(s.id, lo, hi) && !out.has(s.id)) out.set(s.id, hi);
+  return out;
+}
+function bboxOf(s) {
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const [x, y] of K.raster(s)) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  return x0 > x1 ? null : { x0, y0, x1, y1, c: [(x0 + x1) / 2, (y0 + y1) / 2] };
+}
+const mpCands = () => (mp ? mp.hi.shapes.filter((s) => startsAt(s.id, mp.lo, mp.hi)).map((s) => s.id) : []);
+function mpWhy(id) {
+  const n = `<b>${esc(O(id)?.name)}</b>`;
+  if (mp.src.includes(id)) return `${n} is the one being morphed`;
+  if (inKey(mp.lo, id) && inKey(mp.hi, id)) return `${n} is in both keys, so it moves on its own`;
+  if (inKey(mp.lo, id)) return `${n} also ends at key ${mp.lo.v}`;
+  return `${n} isn't in key ${mp.hi.v}`;
+}
+// nearest first: each source takes the closest target still free
+function pairUp(src, T) {
+  const all = [];
+  for (const a of src) for (const b of T) { const p = bboxOf(inKey(mp.lo, a)), q = bboxOf(inKey(mp.hi, b)); all.push([p && q ? Math.hypot(p.c[0] - q.c[0], p.c[1] - q.c[1]) : 1e9, a, b]); }
+  all.sort((x, y) => x[0] - y[0]);
+  const m = new Map(), used = new Set();
+  for (const [, a, b] of all) if (!m.has(a) && !used.has(b)) { m.set(a, b); used.add(b); }
+  return m;
+}
+function mpUpdate() {
+  mp.m = pairUp(mp.src, mp.T);
+  mp.left = mp.T.filter((b) => ![...mp.m.values()].includes(b));
+  mp.T = [...mp.m.values()];
+  const S2 = JSON.parse(JSON.stringify(S)), lo = S2.keys[S.keys.indexOf(mp.lo)], hi = S2.keys[S.keys.indexOf(mp.hi)];
+  for (const o of S2.objs) {
+    if (mp.src.includes(o.id)) { if (mp.m.has(o.id)) o.into = mp.m.get(o.id); else delete o.into; }
+    else if (mp.T.includes(o.into) && inKey(lo, o.id) && !inKey(hi, o.id)) delete o.into;   // the target leaves its old partner
+  }
+  mp.conf = S.objs.filter((o) => !mp.src.includes(o.id) && mp.T.includes(o.into) && endsAt(o.id, mp.lo, mp.hi)).map((o) => o.name);
+  mp.S2 = S2; mp.lastV = null;
+}
+// why an object can't morph into anything, and what to do about it: { why, how }
+function whyNoMorph(id) {
+  const o = O(id), ks = sorted().map(([k]) => k), n = `<b>${esc(o.name)}</b>`, inK = ks.map((k) => !!inKey(k, id));
+  if (ks.length < 2) return { why: `There's only one key, so nothing changes yet.`, how: `Add a key (+ Key) and draw what ${n} becomes there.` };
+  const end = ks.findIndex((k, i) => i < ks.length - 1 && inK[i] && !inK[i + 1]);
+  if (end >= 0) return { why: `${n} ends at key ${ks[end].v}, but nothing <i>new</i> starts in key ${ks[end + 1].v}: everything there is already in key ${ks[end].v} too, and those just move.`,
+    how: `Go to key ${ks[end + 1].v} and draw the shape ${n} should become, as a new object. Then select ${n} and press M again.` };
+  const first = inK.indexOf(true);
+  if (first < 0) return { why: `${n} isn't in any key.`, how: `Put it back with ＋, or Redraw it.` };
+  if (first === 0) return { why: `${n} is in every key${o.linked ? ", and linked, so it's the same in all of them" : ", so it never goes away: between keys it just changes from its own shape in one key to its own shape in the next"}. A morph is for an object that goes away while a different one comes in.`,
+    how: `To change its shape, reshape it in the next key${o.linked ? " (unlink it first, 🔗)" : ""}: it already morphs on its own. To morph it into a different object, take it out of the next key with its dot (○) and draw the new object there.` };
+  return { why: `${n} starts at key ${ks[first].v} and stays to the last key (${ks[ks.length - 1].v}), so it never goes away. It can be a <i>target</i>, though: something that ends at key ${ks[first - 1].v} can morph into it.`,
+    how: `Select the object that ends at key ${ks[first - 1].v}, press M, and click ${n}.` };
+}
+function noMorph(id, extra) {
+  const { why, how } = whyNoMorph(id);
+  renderProps();
+  $("props").insertAdjacentHTML("afterbegin", `<div class="notice"><button class="ico" title="close" onclick="this.parentNode.remove()">✕</button><b>Can't pick a morph for ${esc(O(id).name)}</b><div>${why}${extra || ""}</div><div class="how"><b>How:</b> ${how}</div></div>`);
+  status(`can't pick a morph for <b>${esc(O(id).name)}</b>: see the note beside`);
+}
+function startPick() {
+  const ids = selIds(); if (!ids.length) return;
+  const pairs = keyPairs(), first = ids[0], name = `<b>${esc(O(first).name)}</b>`;
+  // where it ends: prefer a pair with something new to morph into, and the one starting at this key
+  const ends = pairs.filter(([lo, hi]) => endsAt(first, lo, hi)), has = ([lo, hi]) => hi.shapes.some((s) => startsAt(s.id, lo, hi));
+  const pr = ends.find((q) => q[0] === key() && has(q)) || ends.find(has);
+  if (!pr) return noMorph(first, ids.length > 1 ? ` <i>(The first of the ${ids.length} selected objects decides which keys to use.)</i>` : "");
+  const [lo, hi] = pr, src = ids.filter((id) => endsAt(id, lo, hi));
+  if (playing) $("play").click();
+  cur = S.keys.indexOf(lo); lastRaw = null; pend = null; setRedraw(false);
+  mp = { src, lo, hi };
+  const c = new Set(mpCands());
+  Object.assign(mp, { skipped: ids.length - src.length, cur, hover: null, t0: performance.now(), T: [...new Set(src.map((id) => O(id).into).filter((b) => c.has(b)))] });
+  mpUpdate(); renderAll();
+  status(`picking what ${src.length > 1 ? `${src.length} objects` : name} morph${src.length > 1 ? "" : "s"} into, from key ${lo.v} to key ${hi.v}: click a blue one · ⏎ keeps it · Esc cancels`);
+  mp.raf = requestAnimationFrame(mpLoop);
+}
+function mpLoop() {
+  if (!mp) return;
+  const ph = ((performance.now() - mp.t0) / 1100) % 2, f0 = ph < 1 ? ph : 2 - ph, f = Math.min(1, Math.max(0, (f0 - 0.12) / 0.76));
+  const v = Math.round(mp.lo.v + (mp.hi.v - mp.lo.v) * f);
+  if (v !== mp.lastV) { mp.lastV = v; mp.now = K.shapesAt(mp.S2, v); $("val").value = v; renderPreview(); drawCanvas(); }
+  mp.raf = requestAnimationFrame(mpLoop);
+}
+function mpEnd() { if (!mp) return; cancelAnimationFrame(mp.raf); mp = null; cv.style.cursor = tool === "draw" ? "crosshair" : "default"; }
+function mpSet(ids, add) {
+  if (add) { const s = new Set(mp.T); for (const t of ids) s.has(t) ? s.delete(t) : s.add(t); mp.T = [...s]; } else mp.T = ids;
+  mpUpdate(); renderObjs(); renderProps(); renderFrames(); drawCanvas();
+}
+function mpChoose(id, add) {
+  const c = new Set(mpCands());
+  if (!c.has(id)) { status(mpWhy(id)); return; }
+  const g = O(id).group;   // several sources: a grouped target brings its whole group (members pair up nearest first)
+  mpSet(mp.src.length > 1 && g != null && !add ? members(g).filter((m) => c.has(m)) : [id], add);
+}
+function mpChooseGroup(gid, add) {
+  const c = new Set(mpCands()), ids = members(gid).filter((m) => c.has(m));
+  if (!ids.length) { status(`nothing in <b>${esc(G(gid).name)}</b> starts in key ${mp.hi.v}`); return; }
+  mpSet(ids, add);
+}
+function mpCommit() {
+  const { m, src, T, lo, hi } = mp; mpEnd(); push();
+  for (const a of src) { const o = O(a); if (m.has(a)) o.into = m.get(a); else delete o.into; }
+  for (const o of S.objs) if (!src.includes(o.id) && T.includes(o.into) && endsAt(o.id, lo, hi)) delete o.into;
+  changed();
+  status(m.size ? `kept: ${[...m].map(([a, b]) => `<b>${esc(O(a).name)}</b> → <b>${esc(O(b).name)}</b>`).join(", ")}` : `no morph: ${src.length > 1 ? "they come and go" : "it comes and goes"} by ${src.length > 1 ? "their" : "its"} own style`);
+}
+function mpCancel() { mpEnd(); renderAll(); status("morph pick cancelled: nothing changed"); }
+const mpHit = (p) => {   // the candidate under the pointer: the nearest drawn pixel, else the smallest box around it
+  let best = null, bd = 1.6, box = null, ba = 1e9;
+  for (const s of vis(mp.hi.shapes)) {
+    if (!startsAt(s.id, mp.lo, mp.hi)) continue;
+    for (const [x, y] of K.raster(s)) { const d = Math.hypot(x - p[0], y - p[1]); if (d < bd) { bd = d; best = s.id; } }
+    const b = bboxOf(s); if (b && p[0] >= b.x0 - 0.5 && p[0] <= b.x1 + 0.5 && p[1] >= b.y0 - 0.5 && p[1] <= b.y1 + 0.5 && (b.x1 - b.x0 + 1) * (b.y1 - b.y0 + 1) < ba) { ba = (b.x1 - b.x0 + 1) * (b.y1 - b.y0 + 1); box = s.id; }
+  }
+  return best ?? box;
+};
+// on the canvas while picking: candidates as blue ghosts (green when chosen), the animated morph on top, and boxes
+function drawPickUnder(W, H) {
+  for (const s of vis(mp.hi.shapes)) {
+    if (!startsAt(s.id, mp.lo, mp.hi)) continue;
+    cx.fillStyle = mp.T.includes(s.id) ? "rgba(120,230,140,.30)" : s.id === mp.hover ? "rgba(95,200,255,.50)" : "rgba(95,200,255,.22)";
+    for (const [x, y] of K.raster(s)) if (x >= 0 && y >= 0 && x < W && y < H) cx.fillRect(x * Z + 1, y * Z + 1, Z - 2, Z - 2);
+  }
+}
+function drawPickOver() {
+  const R = (b, col, dash, w = 1.5) => { if (!b) return; cx.setLineDash(dash); cx.strokeStyle = col; cx.lineWidth = w; cx.strokeRect(b.x0 * Z - 1.5, b.y0 * Z - 1.5, (b.x1 - b.x0 + 1) * Z + 3, (b.y1 - b.y0 + 1) * Z + 3); cx.setLineDash([]); };
+  for (const a of mp.src) R(bboxOf(inKey(mp.lo, a)), "#ffb35f", [5, 3]);
+  for (const b of mp.T) R(bboxOf(inKey(mp.hi, b)), "#78e68c", []);
+  if (mp.hover != null && !mp.T.includes(mp.hover)) R(bboxOf(inKey(mp.hi, mp.hover)), "#5fc8ff", [], 2);
+  cx.strokeStyle = "rgba(120,230,140,.7)"; cx.lineWidth = 1.5; cx.setLineDash([3, 4]);
+  for (const [a, b] of mp.m) { const p = bboxOf(inKey(mp.lo, a)), q = bboxOf(inKey(mp.hi, b)); if (!p || !q) continue; cx.beginPath(); cx.moveTo((p.c[0] + 0.5) * Z, (p.c[1] + 0.5) * Z); cx.lineTo((q.c[0] + 0.5) * Z, (q.c[1] + 0.5) * Z); cx.stroke(); }
+  cx.setLineDash([]);
+}
+function pickProps(P) {
+  const nm = (id) => `<b>${esc(O(id)?.name)}</b>`, one = mp.src.length === 1;
+  const g = !one && mp.src.every((id) => O(id).group != null && O(id).group === O(mp.src[0]).group) ? G(O(mp.src[0]).group) : null;
+  const pairs = mp.src.map((a) => `<div>${nm(a)} → ${mp.m.has(a) ? `<span style="color:#78e68c">${nm(mp.m.get(a))}</span>` : `<span style="color:var(--dim)">nothing: ${{ grow: "shrinks away", draw: "undraws", pop: "pops out" }[O(a).appear || "grow"]}</span>`}</div>`).join("");
+  P.innerHTML = `
+    <div class="hint" style="color:var(--text)"><b>Morphs into…</b> for ${one ? nm(mp.src[0]) : g ? `the group <b>${esc(g.name)}</b>` : `${mp.src.length} objects`}, from key ${mp.lo.v} to key ${mp.hi.v}.
+      Click a <span style="color:#5fc8ff">blue</span> object on the canvas, or in the list, to see it play.${one ? "" : " A grouped one brings its whole group: members pair up with the nearest."} ⇧-click adds or takes one out.</div>
+    <div class="mppairs">${pairs}</div>
+    ${mp.left.length ? `<div class="hint">${mp.left.map(nm).join(", ")}: no one left to pair with, so ${mp.left.length > 1 ? "they come" : "it comes"} in by ${mp.left.length > 1 ? "their" : "its"} own style.</div>` : ""}
+    ${mp.conf.length ? `<div class="hint" style="color:var(--sel)">Keeping this takes the target from ${mp.conf.map((n) => `<b>${esc(n)}</b>`).join(", ")}.</div>` : ""}
+    ${mp.skipped ? `<div class="hint">${mp.skipped} selected object${mp.skipped > 1 ? "s don't" : " doesn't"} end at key ${mp.lo.v}, so ${mp.skipped > 1 ? "they're" : "it's"} left as is.</div>` : ""}
+    <div class="full"><button class="btn sm on" id="mpok">✓ Use this ⏎</button><button class="btn sm" id="mpnone">None</button><button class="btn sm" id="mpx">Cancel Esc</button></div>`;
+  $("mpok").onclick = mpCommit; $("mpx").onclick = mpCancel;
+  $("mpnone").onclick = () => mpSet([], false);
+}
+// the dropdown: only targets that can work, under their groups
+function intoOptions(o) {
+  const ok = targetsFor(o.id), by = new Map();
+  for (const [id, k] of ok) { const q = O(id), gn = q.group != null ? G(q.group)?.name : null; if (!by.has(gn)) by.set(gn, []); by.get(gn).push(`<option value="${id}" ${o.into === id ? "selected" : ""}>${esc(q.name)} · key ${k.v}</option>`); }
+  let h = `<option value="">— none (comes / goes)</option>`;
+  for (const [gn, opts] of [...by].sort((a, b) => (a[0] == null) - (b[0] == null))) h += `<optgroup label="${gn == null ? "Not in a group" : esc(gn)}">${opts.join("")}</optgroup>`;
+  if (o.into != null && !ok.has(o.into) && O(o.into)) h += `<optgroup label="Not possible now"><option value="${o.into}" selected>${esc(O(o.into).name)} (not used)</option></optgroup>`;
+  if (!ok.size) h += `<option disabled>(none possible: Pick… says why)</option>`;
+  return h;
+}
+
+// ---------- preview, frames, export
+let F = [];
+function paint(c, g, s) {
+  c.width = S.w * s; c.height = S.h * s;
+  const x = c.getContext("2d"); x.fillStyle = "#000"; x.fillRect(0, 0, c.width, c.height); x.fillStyle = "#dfeeff";
+  for (let j = 0; j < S.h; j++) for (let i = 0; i < S.w; i++) if (g[j * S.w + i]) x.fillRect(i * s, j * s, s, s);
+}
+const frameOf = (v) => Math.min(S.steps - 1, Math.floor((v * S.steps) / 128));
+function renderPreview() {
+  const v = +$("val").value, i = frameOf(v), g = F[i] || new Uint8Array(S.w * S.h);
+  $("valn").textContent = `${v} → frame ${i}`;
+  paint($("p4"), g, Math.max(2, Math.floor(150 / Math.max(S.w, S.h)))); paint($("p1"), g, 1);
+  renderScreen(g);
+  document.querySelectorAll(".film > div").forEach((d, k) => d.classList.toggle("on", k === i));
+  $("mkkey").disabled = S.keys.some((k) => k.v === K.frameValue(i, S.steps));
+}
+function renderFrames() {
+  F = K.frames(mp ? mp.S2 : S);
+  const film = $("film"); film.innerHTML = "";
+  const s = Math.max(1, Math.min(2, Math.floor(40 / S.w))), keyVals = new Set(S.keys.map((k) => k.v));
+  F.forEach((g, i) => {
+    const d = document.createElement("div"), c = document.createElement("canvas"); paint(c, g, s);
+    if (keyVals.has(K.frameValue(i, S.steps))) d.className = "key";
+    d.title = `value ${K.frameValue(i, S.steps)}${d.className ? " (a key)" : ""}`;
+    d.append(c, String(i)); d.onclick = () => { $("val").value = K.frameValue(i, S.steps); renderPreview(); }; film.append(d);
+  });
+  const uniq = new Set(F.map((g) => g.join(""))).size, bytes = ((S.w + 7) >> 3) * S.h * F.length;
+  $("fcount").textContent = `· ${F.length} (${uniq} different) · ${bytes} B`;
+  const name = ($("bname").value || "bmp").replace(/[^A-Za-z0-9_]/g, "_"); $("bn2").textContent = name;
+  $("out").value = JSON.stringify({ [name]: K.exportBitmap(S) });
+}
+// the previewed frame becomes a key holding its in-between shapes (morphs become free shapes)
+$("mkkey").onclick = () => {
+  const v = K.frameValue(frameOf(+$("val").value), S.steps);
+  if (S.keys.some((k) => k.v === v)) return;
+  push();
+  S.keys.push({ v, shapes: cloneS(K.shapesAt(S, v)) });
+  cur = S.keys.length - 1; changed();
+  status(`the frame at value <b>${v}</b> is now a key: edit it or paste into it`);
+};
+function renderAll() {
+  if (mp && (cur !== mp.cur || !S.keys.includes(mp.lo) || !S.keys.includes(mp.hi))) mpEnd();
+  if (sel != null && !O(sel)) sel = null;
+  multi = new Set([...multi].filter((id) => O(id) && id !== sel));
+  if (sel == null) multi = new Set();
+  $("w").value = S.w; $("h").value = S.h; $("preset").value = String(PRESETS.findIndex((p) => p[1] === S.w && p[2] === S.h)).replace("-1", ""); $("steps").value = String(S.steps); $("morph").checked = S.morph === true;
+  if (sel != null) trSel = false;
+  $("grpTool").disabled = selIds().length < 2; $("partSave").disabled = !selIds().length;
+  sizeCanvas(); drawCanvas(); renderKeys(); renderObjs(); renderProps(); renderFrames(); renderPreview();
+}
+$("val").oninput = renderPreview;
+$("play").onclick = () => {
+  if (playing) { cancelAnimationFrame(playing); playing = 0; $("play").textContent = "▶ Sweep"; return; }
+  $("play").textContent = "■ Stop"; const t0 = performance.now();
+  const tick = (t) => { const ph = ((t - t0) / 2400) % 2, v = Math.round((ph < 1 ? ph : 2 - ph) * 127); $("val").value = v; renderPreview(); playing = requestAnimationFrame(tick); };
+  playing = requestAnimationFrame(tick);
+};
+$("bname").oninput = () => { renderFrames(); scheduleSave(); };
+$("copy").onclick = () => { navigator.clipboard?.writeText($("out").value); status("bitmap JSON copied"); };
+
+// ---------- sizes: presets, and the sketch at its place on a whole screen. Behind it, a guide only: either a drawn
+// stand-in (a header and 8 knob slots, 4 per row, 32 px each, with labels, with a tall top row or even rows), or a
+// reference page: a 1-bit 128x64 picture with the cells its controls draw in. Reference pages come from
+// priv/screens.json (tools/priv_screens.py: captured device pages, private, never committed) or from the library
+// (type "screen": "+ Add a screen from an image", kept in this browser). S.place {screen, slot} or {screen, x, y}
+// remembers where the sketch goes; it changes nothing in the frames or the export.
+const SCREENS = {
+  fm4: { name: "Guide: tall top row", rows: [{ gy: 14, gh: 21, ly: 37 }, { gy: 45, gh: 11, ly: 57 }] },
+  even: { name: "Guide: even rows", rows: [{ gy: 13, gh: 18, ly: 32 }, { gy: 39, gh: 18, ly: 58 }] },
+};
+let PAGES = [];   // [{ id, name, fb: Uint8Array(1024), cells: [{name, x, y, w, h}], from: "priv" | "lib", libId }]
+const PRESETS = [
+  ["Knob, tall row", 28, 21, "fm4", 0], ["Knob, short row", 28, 11, "fm4", 4], ["Knob, even rows", 28, 18, "even", 0],
+  ["Dial", 21, 21, "fm4", 0], ["Small icon", 13, 13, "fm4", 0], ["Tiny icon", 9, 9, "fm4", 0],
+  ["Two knobs wide", 60, 21, "fm4", 0], ["Half screen", 64, 52, "fm4", 0], ["Below the header", 128, 52, "fm4", 0], ["Full screen", 128, 64, "fm4", 0],
+];
+const SLOTN = "ABCDEFGH", SZ = 2;
+$("preset").innerHTML = `<option value="">Size preset…</option>` + PRESETS.map(([n, w, h], i) => `<option value="${i}">${n} · ${w}×${h}</option>`).join("");
+function renderScrT() {
+  const pg = (from) => PAGES.filter((q) => q.from === from).map((q) => `<option value="${esc(q.id)}">${esc(q.name)}</option>`).join("");
+  const cur = PAGES.find((q) => q.id === S?.place?.screen && q.from === "lib");
+  $("scrT").innerHTML = `<optgroup label="Guides">${Object.entries(SCREENS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("")}</optgroup>` +
+    (PAGES.some((q) => q.from === "priv") ? `<optgroup label="Reference pages (local)">${pg("priv")}</optgroup>` : "") +
+    (PAGES.some((q) => q.from === "lib") ? `<optgroup label="Your screens (library)">${pg("lib")}</optgroup>` : "") +
+    `<optgroup label="—"><option value="__add">+ Add a screen from an image…</option>${cur ? `<option value="__del">✕ Remove “${esc(cur.name)}”</option>` : ""}</optgroup>`;
+  $("scrT").value = place().screen;
+}
+async function loadScreens() {
+  const out = [];
+  try { const r = await fetch("priv/screens.json", { cache: "no-store" }); if (r.ok) for (const q of (await r.json()).screens || []) out.push({ ...q, fb: hexBytes(q.fb), from: "priv" }); } catch (e) {}
+  try { for (const a of await LIB.list("screen", true)) out.push({ id: "lib:" + a.id, libId: a.id, name: a.name, fb: hexBytes(a.data.fb), cells: a.data.cells || [], from: "lib" }); } catch (e) {}
+  PAGES = out; if (S) { renderScrT(); renderPreview(); }
+}
+const hexBytes = (h) => { const o = new Uint8Array(1024); for (let i = 0; i < 1024 && 2 * i < h.length; i++) o[i] = parseInt(h.substr(2 * i, 2), 16); return o; };
+const pageOf = (id) => PAGES.find((q) => q.id === id);
+$("preset").onchange = () => {
+  const p = PRESETS[$("preset").value]; if (!p) return;
+  push(); S.w = p[1]; S.h = p[2]; S.place = { screen: p[3], slot: p[4] }; changed();
+};
+$("scrT").onchange = () => {
+  const v = $("scrT").value;
+  if (v === "__add") { renderScrT(); $("scrFile").click(); return; }
+  if (v === "__del") { removeScreen(); return; }
+  S.place = { screen: v, slot: pageOf(v) ? bestCell(pageOf(v)) : place().slot }; persist(); renderScrT(); renderPreview();
+};
+const place = () => {
+  const p = (S && S.place) || {}, id = SCREENS[p.screen] || pageOf(p.screen) ? p.screen : "fm4";
+  return { screen: id, slot: Math.max(0, p.slot | 0), x: p.x, y: p.y };
+};
+// on a reference page with cells: the cell the sketch fits best (the smallest it fits in, else the biggest)
+function bestCell(pg) {
+  if (!pg.cells.length) return 0;
+  const fit = pg.cells.map((c, i) => [c, i]).filter(([c]) => c.w >= S.w && c.h >= S.h).sort((a, b) => a[0].w * a[0].h - b[0].w * b[0].h);
+  return fit.length ? fit[0][1] : pg.cells.map((c, i) => [c, i]).sort((a, b) => b[0].w * b[0].h - a[0].w * a[0].h)[0][1];
+}
+// where the sketch lands
+function placeRect() {
+  const pl = place(), w = Math.min(S.w, 128), h = Math.min(S.h, 64), pg = pageOf(pl.screen), cl = (v, m) => Math.max(0, Math.min(m, v));
+  if (pg) {
+    if (Number.isFinite(pl.x) && Number.isFinite(pl.y)) return { x: cl(pl.x | 0, 128 - w), y: cl(pl.y | 0, 64 - h), w, h, pg, free: true };
+    const c = pg.cells[Math.min(pl.slot, pg.cells.length - 1)];
+    if (!c) return { x: (128 - w) >> 1, y: (64 - h) >> 1, w, h, pg, free: true };
+    return { x: cl(c.x + Math.floor((c.w - w) / 2), 128 - w), y: cl(c.y + Math.floor((c.h - h) / 2), 64 - h), w, h, pg, cell: c };
+  }
+  const row = SCREENS[pl.screen].rows[Math.min(7, pl.slot) >> 2], slot = Math.min(7, pl.slot);
+  const n = Math.max(1, Math.ceil(w / 32)), col = Math.min(slot & 3, 4 - Math.min(4, n));
+  const x = Math.max(0, Math.min(128 - w, col * 32 + Math.floor((n * 32 - w) / 2)));
+  const y = h <= row.gh ? row.gy + ((row.gh - h) >> 1) : Math.max(0, Math.min(row.gy, 64 - h));
+  return { x, y, w, h, row, n };
+}
+function screenParts(scr) {
+  const out = [{ name: "the header", x: 0, y: 0, w: 128, h: 12, kind: "head" }];
+  scr.rows.forEach((r, ri) => { for (let c = 0; c < 4; c++) {
+    out.push({ name: `slot ${SLOTN[ri * 4 + c]}`, x: c * 32 + 2, y: r.gy, w: 28, h: r.gh, kind: "slot", i: ri * 4 + c });
+    out.push({ name: `${SLOTN[ri * 4 + c]}'s label`, x: c * 32 + 8, y: r.ly, w: 16, h: 5, kind: "label", i: ri * 4 + c });
+  } });
+  return out;
+}
+const hit = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+const lit = (fb, i, j) => (fb[j * 16 + (i >> 3)] >> (7 - (i & 7))) & 1;
+function renderScreen(g) {
+  const c = $("scr"); c.width = 128 * SZ; c.height = 64 * SZ;
+  const x = c.getContext("2d"), pl = place(), R = placeRect();
+  if ($("scrT").value !== pl.screen) $("scrT").value = pl.screen;
+  x.fillStyle = "#000"; x.fillRect(0, 0, c.width, c.height);
+  let over = [], covered = 0;
+  if (R.pg) {   // a reference page: its pixels dim, its cells dotted
+    x.fillStyle = "#4a5a6c";
+    for (let j = 0; j < 64; j++) for (let i = 0; i < 128; i++) if (lit(R.pg.fb, i, j)) x.fillRect(i * SZ, j * SZ, SZ, SZ);
+    x.setLineDash([2, 2]); x.lineWidth = 1;
+    R.pg.cells.forEach((q, i) => { x.strokeStyle = q === R.cell ? "#6f9bd0" : "#2c4a66"; x.strokeRect(q.x * SZ - 0.5, q.y * SZ - 0.5, q.w * SZ + 1, q.h * SZ + 1); });
+    for (let j = R.y; j < R.y + R.h; j++) for (let i = R.x; i < R.x + R.w; i++) if (lit(R.pg.fb, i, j) && !(R.cell && i >= R.cell.x && i < R.cell.x + R.cell.w && j >= R.cell.y && j < R.cell.y + R.cell.h)) covered++;
+    const holds = (q) => q.x <= R.x && q.y <= R.y && q.x + q.w >= R.x + R.w && q.y + q.h >= R.y + R.h;   // a bigger cell round it (an envelope over A-D) is no clash
+    over = R.pg.cells.filter((q) => q !== R.cell && hit(R, q) && !holds(q));
+  } else {   // the drawn guide: header boxes, slot areas (dotted), label stand-ins
+    const scr = SCREENS[pl.screen], parts = screenParts(scr);
+    x.fillStyle = "#18222c"; x.fillRect(0, 0, 21 * SZ, 11 * SZ); x.fillRect(23 * SZ, 0, 105 * SZ, 11 * SZ);
+    x.fillStyle = "#3a4a5a"; x.font = `${5 * SZ}px sans-serif`; x.textBaseline = "middle"; x.fillText("header", 26 * SZ, 5.5 * SZ);
+    x.setLineDash([2, 2]); x.lineWidth = 1;
+    for (const p of parts) {
+      if (p.kind === "slot") { x.strokeStyle = p.i === pl.slot ? "#4b6a8a" : "#26323e"; x.strokeRect(p.x * SZ + 0.5, p.y * SZ + 0.5, p.w * SZ - 1, p.h * SZ - 1);
+        x.fillStyle = "#2e3c4a"; x.fillText(SLOTN[p.i], p.x * SZ + 3, p.y * SZ + 6); }
+      if (p.kind === "label") { x.fillStyle = "#1f2a35"; x.fillRect(p.x * SZ, p.y * SZ, p.w * SZ, p.h * SZ); }
+    }
+    over = parts.filter((p) => p.kind !== "slot" ? hit(R, p) : p.i !== pl.slot && hit(R, p));
+  }
+  // the sketch at actual pixels over a cleared cell, and its edge (red if it runs into something)
+  x.fillStyle = "#000"; x.fillRect(R.x * SZ, R.y * SZ, R.w * SZ, R.h * SZ);
+  x.fillStyle = "#dfeeff";
+  for (let j = 0; j < R.h; j++) for (let i = 0; i < R.w; i++) if (g[j * S.w + i]) x.fillRect((R.x + i) * SZ, (R.y + j) * SZ, SZ, SZ);
+  x.setLineDash([3, 2]); x.strokeStyle = over.length || covered ? "#e0605a" : "#5a9be0";
+  x.strokeRect(R.x * SZ - 0.5, R.y * SZ - 0.5, R.w * SZ + 1, R.h * SZ + 1); x.setLineDash([]);
+  // what it means
+  const at = `${S.w}×${S.h} at x ${R.x}, y ${R.y}`, names = (l) => [...new Set(l.map((p) => p.name))].slice(0, 6).join(", ") + (l.length > 6 ? " and more" : "");
+  let msg;
+  if (S.w > 128 || S.h > 64) msg = `<b>${S.w}×${S.h}</b> is bigger than the screen (128×64).`;
+  else if (R.pg) {
+    const C = R.cell, cov = covered ? `it covers ${covered} lit pixel${covered > 1 ? "s" : ""} of the page${C ? " outside the cell" : ""}` : "", ov = over.length ? `overlaps ${names(over)}` : "";
+    const bad = [cov, ov].filter(Boolean).join(" and ");
+    if (C) msg = S.w <= C.w && S.h <= C.h ? `<b>Fits ${esc(C.name)}</b> (its cell is ${C.w}×${C.h}; ${at})${bad ? ", but " + bad : ""}.`
+      : `<b>Bigger than ${esc(C.name)}</b> (its cell is ${C.w}×${C.h}, this is ${S.w}×${S.h})${bad ? ": " + bad : ""}.`;
+    else msg = `<b>${at}</b>${bad ? ": " + bad : ", on an empty part of the page"}.`;
+    msg += ` <span style="opacity:.7">Click a cell to snap to it, or drag the sketch anywhere.</span>`;
+  } else {
+    const fitsW = S.w <= 28, fitsH = S.h <= R.row.gh;
+    if (fitsW && fitsH) msg = `<b>Fits knob slot ${SLOTN[pl.slot]}</b> (${at}): ${28 - S.w} px spare across, ${R.row.gh - S.h} px down.`;
+    else if (!over.length) msg = `<b>${at}</b>.`;
+    else msg = `<b>${at}</b>: it covers ${names(over)}. ` +
+      (S.w <= 32 && S.h <= R.row.gh ? `A knob slot is 32 px wide: 28 or less leaves a gap between knobs.` :
+       S.w <= 28 && !fitsH ? `This row has ${R.row.gh} px for a graphic above the label; fine if the page gives it more room.` : `That's fine for a picture that takes over those knobs' places.`);
+    msg += ` <span style="opacity:.7">Click a slot to move it.</span>`;
+  }
+  $("scrMsg").innerHTML = msg;
+}
+// clicks and drags on the preview: a guide's slot, a page's cell (snap), or anywhere on a page (drag)
+let scrDrag = null;
+const scrAt = (e) => { const b = $("scr").getBoundingClientRect(); return [((e.clientX - b.left) / b.width) * 128, ((e.clientY - b.top) / b.height) * 64]; };
+$("scr").onpointerdown = (e) => {
+  const [px, py] = scrAt(e), R = placeRect();
+  scrDrag = { px, py, ox: px - R.x, oy: py - R.y, moved: false, inside: px >= R.x && px < R.x + R.w && py >= R.y && py < R.y + R.h };
+  $("scr").setPointerCapture?.(e.pointerId);
+};
+$("scr").onpointermove = (e) => {
+  if (!scrDrag || !pageOf(place().screen)) return;
+  const [px, py] = scrAt(e);
+  if (!scrDrag.moved && Math.hypot(px - scrDrag.px, py - scrDrag.py) < 1.5) return;
+  if (!scrDrag.moved && !scrDrag.inside) { const R = placeRect(); scrDrag.ox = R.w / 2; scrDrag.oy = R.h / 2; }
+  scrDrag.moved = true;
+  S.place = { screen: place().screen, x: Math.round(px - scrDrag.ox), y: Math.round(py - scrDrag.oy) }; renderPreview();
+};
+$("scr").onpointerup = (e) => {
+  const d = scrDrag; scrDrag = null; if (!d) return;
+  if (d.moved) { persist(); return; }
+  const [px, py] = scrAt(e), pl = place(), pg = pageOf(pl.screen);
+  if (pg) {
+    const inCell = pg.cells.map((c, i) => [c, i]).filter(([c]) => px >= c.x && px < c.x + c.w && py >= c.y && py < c.y + c.h).sort((a, b) => a[0].w * a[0].h - b[0].w * b[0].h)[0];
+    if (inCell) S.place = { screen: pl.screen, slot: inCell[1] };
+    else { const R = placeRect(); S.place = { screen: pl.screen, x: Math.round(px - R.w / 2), y: Math.round(py - R.h / 2) }; }
+  } else {
+    if (py < 12) return;
+    const scr = SCREENS[pl.screen], row = py < (scr.rows[0].ly + 7 + scr.rows[1].gy) / 2 ? 0 : 1;
+    S.place = { screen: pl.screen, slot: row * 4 + Math.min(3, Math.floor(px / 32)) };
+  }
+  persist(); renderPreview();
+};
+// a screen from an image: a capture of a page (an emulator's PNG, a screenshot, a cropped photo of the display),
+// scaled to 128x64 and made 1-bit; kept in the library (this browser), not in any file
+$("scrFile").onchange = () => {
+  const f = $("scrFile").files[0]; $("scrFile").value = ""; if (!f) return;
+  const img = new Image();
+  img.onload = async () => {
+    const c = document.createElement("canvas"); c.width = 128; c.height = 64;
+    const x = c.getContext("2d"), ar = img.naturalWidth / img.naturalHeight;
+    x.imageSmoothingEnabled = !(img.naturalWidth % 128 === 0 && img.naturalHeight % 64 === 0);
+    x.fillStyle = "#000"; x.fillRect(0, 0, 128, 64);
+    if (Math.abs(ar - 2) < 0.25) x.drawImage(img, 0, 0, 128, 64);
+    else { const k = Math.min(128 / img.naturalWidth, 64 / img.naturalHeight), w = img.naturalWidth * k, h = img.naturalHeight * k; x.drawImage(img, (128 - w) / 2, (64 - h) / 2, w, h); }
+    const d = x.getImageData(0, 0, 128, 64).data, L = new Float32Array(128 * 64);
+    let lo = 1, hi = 0;
+    for (let i = 0; i < L.length; i++) { L[i] = (0.299 * d[4 * i] + 0.587 * d[4 * i + 1] + 0.114 * d[4 * i + 2]) / 255; lo = Math.min(lo, L[i]); hi = Math.max(hi, L[i]); }
+    const thr = (lo + hi) / 2, fb = new Uint8Array(1024);
+    let n = 0; for (let i = 0; i < L.length; i++) if (L[i] > thr) n++;
+    const inv = n > L.length / 2;   // a light background (a screenshot drawn dark on light): lit = the dark pixels
+    for (let j = 0; j < 64; j++) for (let i = 0; i < 128; i++) if ((L[j * 128 + i] > thr) !== inv) fb[j * 16 + (i >> 3)] |= 0x80 >> (i & 7);
+    const name = prompt("Name of this screen (e.g. “Rytm BD HARD synth”)", f.name.replace(/\.[^.]+$/, ""));
+    if (!name) return;
+    const g = new Uint8Array(128 * 64); for (let j = 0; j < 64; j++) for (let i = 0; i < 128; i++) g[j * 128 + i] = lit(fb, i, j);
+    const id = LIB.newId();
+    await LIB.put({ id, type: "screen", name: await LIB.freeName("screen", name.trim()), tags: [], data: { fb: Array.from(fb, (v) => v.toString(16).padStart(2, "0")).join(""), cells: [] }, thumb: LIB.thumbOf(g, 128, 64, 128) });
+    S.place = { screen: "lib:" + id, x: (128 - S.w) >> 1, y: (64 - S.h) >> 1 }; persist();
+    await loadScreens();
+    status(`added the screen <b>${esc(name)}</b> (from ${img.naturalWidth}×${img.naturalHeight}${Math.abs(ar - 2) < 0.25 ? "" : ", fitted into 128×64"}): drag your sketch to where it goes on that page`);
+  };
+  img.onerror = () => status("that file isn't an image");
+  img.src = URL.createObjectURL(f);
+};
+async function removeScreen() {
+  const pg = pageOf(place().screen);
+  if (!pg || pg.from !== "lib" || !confirm(`Remove the screen “${pg.name}” from the library?`)) { renderScrT(); return; }
+  await LIB.del(pg.libId); S.place = { screen: "fm4", slot: 0 }; persist(); await loadScreens();
+}
+LIB.onChange((m) => { if (m.type === "screen") loadScreens(); });
+loadScreens();
+
+// ---------- tools, header, keys
+function setTool(t, keepRedraw) { tool = t; if (!keepRedraw) setRedraw(false); document.querySelectorAll("[data-tool]").forEach((b) => b.classList.toggle("on", b.dataset.tool === t)); cv.style.cursor = t === "draw" ? "crosshair" : "default"; drawCanvas(); }
+document.querySelectorAll("[data-tool]").forEach((b) => (b.onclick = () => setTool(b.dataset.tool)));
+function setKind(k) { if (pend && k !== "poly") finishPoly(false); kind = k; document.querySelectorAll("[data-kind]").forEach((b) => b.classList.toggle("on", b.dataset.kind === k)); if (tool !== "draw") setTool("draw", true); }
+$("kindseg").innerHTML = KIND_UI.map(([k, n, svg], i) => `<button data-kind="${k}" title="${n}: every stroke becomes ${k === "auto" ? "the best-fitting shape" : "a " + k}${k === "poly" ? "; or click corner by corner" : ""} (key ${i + 1})" class="${k === "auto" ? "on" : ""}"><svg width="16" height="16" viewBox="0 0 16 16">${svg}</svg><span class="lbl">${n}</span><kbd>${i + 1}</kbd></button>`).join("");
+document.querySelectorAll("[data-kind]").forEach((b) => (b.onclick = () => setKind(b.dataset.kind)));
+$("w").onchange = () => { push(); S.w = Math.max(4, Math.min(128, $("w").value | 0)); changed(); };
+$("h").onchange = () => { push(); S.h = Math.max(4, Math.min(64, $("h").value | 0)); changed(); };
+$("steps").onchange = () => { push(); S.steps = +$("steps").value; changed(); };
+["onion", "vec"].forEach((id) => ($(id).onchange = drawCanvas));
+$("tagOn").onchange = () => { try { localStorage.setItem("rmpui-ptag", $("tagOn").checked ? "1" : "0"); } catch (e) {} showTag(); };
+try { if (localStorage.getItem("rmpui-ptag") === "0") $("tagOn").checked = false; } catch (e) {}
+$("morph").onchange = () => { push(); S.morph = $("morph").checked; changed(); };
+$("undo").onclick = undo;
+function undo() { const t = hist.pop(); if (t) { S = JSON.parse(t); cur = Math.min(cur, S.keys.length - 1); changed(); } }
+$("new").onclick = () => createAsset({ w: S.w, h: S.h, steps: S.steps, next: 1, objs: [], keys: [{ v: 0, shapes: [] }, { v: 127, shapes: [] }] }, "sketch");
+$("demo").onclick = () => createAsset(K.demo(), "dial demo");
+$("save").onclick = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(S, null, 1)], { type: "application/json" })); a.download = ($("bname").value || "sketch") + ".sketch.json"; a.click(); };
+$("open").onchange = async (e) => { const f = e.target.files[0]; e.target.value = ""; if (!f) return; try { await createAsset(JSON.parse(await f.text()), f.name.replace(/(\.sketch)?\.json$/i, "")); } catch (x) { status(`couldn't open ${esc(f.name)}: ${esc(x.message)}`); } };
+$("trace").onchange = (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) addTrace(f); };
+document.addEventListener("keydown", (e) => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "TEXTAREA") return;
+  const cmd = e.metaKey || e.ctrlKey;
+  if (mp) {
+    if (e.key === "Enter") { e.preventDefault(); mpCommit(); return; }
+    if (e.key === "Escape" || (cmd && e.key === "z")) { e.preventDefault(); mpCancel(); return; }
+    if (cmd || e.key.startsWith("Arrow") || e.key === "Backspace" || e.key === "Delete") { e.preventDefault(); return; }
+  }
+  if (!cmd && (e.key === "m" || e.key === "M") && !mp && sel != null) { startPick(); return; }
+  if (cmd && e.key === "z") { e.preventDefault(); undo(); }
+  else if (cmd && (e.key === "g" || e.key === "G")) { e.preventDefault(); if (e.shiftKey) ungroupSel(); else groupSel(); }
+  else if (cmd && e.key === "c") { e.preventDefault(); copySel(); renderProps(); }
+  else if (cmd && e.key === "v") { e.preventDefault(); paste(); }
+  else if (cmd && e.key === "a") { e.preventDefault(); const ids = vis(key().shapes).map((s) => s.id); sel = ids[0] ?? null; multi = new Set(ids.slice(1)); renderAll(); status(`${ids.length} objects selected`); }
+  else if (e.key.startsWith("Arrow") && trSel && TR) { e.preventDefault(); const st = e.shiftKey ? 4 : e.altKey ? 0.1 : 1; TR.x = +(TR.x + (e.key === "ArrowLeft" ? -st : e.key === "ArrowRight" ? st : 0)).toFixed(2); TR.y = +(TR.y + (e.key === "ArrowUp" ? -st : e.key === "ArrowDown" ? st : 0)).toFixed(2); saveTrace(); drawCanvas(); renderProps(); }
+  else if (e.key.startsWith("Arrow") && sel != null) { e.preventDefault(); const st = e.shiftKey ? 4 : 1; nudge(e.key === "ArrowLeft" ? -st : e.key === "ArrowRight" ? st : 0, e.key === "ArrowUp" ? -st : e.key === "ArrowDown" ? st : 0); }
+  else if (cmd) return;
+  else if (e.key === "+" || e.key === "=") setZoom(zStep(1));
+  else if (e.key === "-" || e.key === "_") setZoom(zStep(-1));
+  else if (e.key === "0") setZoom(null);
+  else if (e.key === "d") setTool("draw");
+  else if (e.key === "e" || e.key === "v") setTool("edit");
+  else if (e.key === "p" || e.key === "P") showParts($("partDrawer").hidden);
+  else if (e.key >= "1" && e.key <= String(KIND_UI.length)) setKind(KIND_UI[+e.key - 1][0]);
+  else if ((e.key === "Backspace" || e.key === "Delete") && sel != null) {   // out of this key; it stays selected, so "Put it back" is one click
+    const ids = selIds().filter((id) => inKey(key(), id)); if (!ids.length) return;
+    push(); for (const id of ids) toggleHere(id); sel = ids[0]; multi = new Set(ids.slice(1)); changed();
+    status(`${ids.length > 1 ? `${ids.length} objects` : `<b>${esc(O(ids[0]).name)}</b>`} taken out of this key · ＋ Put it back (or ⌘Z) brings ${ids.length > 1 ? "them" : "it"} back`);
+  }
+  else if (e.key === "Enter" && pend) finishPoly(false);
+  else if (e.key === "Escape" && pend) { pend = null; status("polygon cancelled"); drawCanvas(); }
+  else if (e.key === "Escape" && !$("libDrawer").hidden) showLib(false);
+  else if (e.key === "Escape" && !$("partDrawer").hidden) showParts(false);
+  else if (e.key === "Escape") { trSel = false; sel = null; multi = new Set(); setRedraw(false); renderAll(); }
+});
+
+// ---------- the guide: tutorials beside the canvas; their "Load this result" sends the sketch here
+const GKEY = "rmpui-guide";
+function guideState() { try { return JSON.parse(localStorage.getItem(GKEY) || "{}"); } catch (e) { return {}; } }
+function setGuide(open, page) {
+  const g = { ...guideState(), open, page: page || guideState().page || "tutorials.html" };
+  try { localStorage.setItem(GKEY, JSON.stringify(g)); } catch (e) {}
+  document.querySelector("main").classList.toggle("guide", open);
+  $("guideBtn").classList.toggle("on", open);
+  if (open) {
+    const f = $("guideFrame"), want = g.page + "?embed";
+    if (!f.src.endsWith(want)) f.src = want;
+    $("guideSel").value = g.page; $("guideTab").href = g.page;
+  }
+  sizeCanvas(); drawCanvas();
+}
+$("guideBtn").onclick = () => setGuide(!guideState().open);
+$("guideX").onclick = (e) => { e.preventDefault(); setGuide(false); };
+$("guideSel").onchange = () => setGuide(true, $("guideSel").value);
+$("guideFrame").addEventListener("load", () => {   // following links inside the guide: remember the page
+  try { const p = $("guideFrame").contentWindow.location.pathname.split("/").pop(); if (p && p.endsWith(".html")) { const g = guideState(); g.page = p; localStorage.setItem(GKEY, JSON.stringify(g)); $("guideSel").value = p; $("guideTab").href = p; } } catch (e) {}
+});
+addEventListener("message", (e) => {
+  if (e.origin !== location.origin || e.data?.type !== "rmpui-load-sketch") return;
+  incoming().then((got) => { if (!got) { push(); S = load(); cur = 0; sel = null; pend = null; lastRaw = null; changed(); status("loaded the tutorial's sketch (⌘Z to go back)"); } });
+});
+addEventListener("resize", () => { sizeCanvas(); drawCanvas(); });
+
+S = load();
+tidy();
+renderAll();
+if (guideState().open) setGuide(true);
+status("Pick a shape (or Auto), then draw: the stroke becomes that shape, snapped to the pixels.");
+// a link from the layout page: #open=<asset id> opens that sketch; #new=<export name>&w=&h=&slot= starts one for a
+// frames element that names a bitmap nobody has drawn yet (sized for its knob slot, exported under that name)
+async function fromHash() {
+  const h = new URLSearchParams(location.hash.slice(1)); if (!h.has("open") && !h.has("new")) return;
+  history.replaceState(null, "", location.pathname);
+  if (h.get("open")) { if (await LIB.get(h.get("open"))) { await openAsset(h.get("open")); status(`opened <b>${esc(asset.name)}</b> from the layout: edits show there as you go`); } return; }
+  const name = h.get("new"), w = Math.max(4, Math.min(128, +h.get("w") || 28)), hh = Math.max(4, Math.min(64, +h.get("h") || 21));
+  await createAsset({ w, h: hh, steps: 16, next: 1, objs: [], keys: [{ v: 0, shapes: [] }, { v: 127, shapes: [] }], place: { screen: "fm4", slot: Math.max(0, Math.min(7, +h.get("slot") || 0)) } }, name);
+  $("bname").value = name; renderFrames(); await saveAsset();
+  status(`new sketch <b>${esc(asset.name)}</b> for the layout, ${w}×${hh} (its knob slot): it exports as <b>${esc(name)}</b>, so the layout shows it as you draw`);
+}
+// ---------- the agent link (agent.js, serve.py, tools/rmpui.py, AGENT.md): an agent works in this page, where you see it
+var AG = null, agentQuiet = false;   // agentQuiet: the agent's own change is being saved (not reported back as yours)
+const quietly = async (fn) => { agentQuiet = true; try { return await fn(); } finally { agentQuiet = false; } };
+async function findAsset(type, name) {
+  const all = await LIB.list(type, true), a = all.find((x) => x.name === name) || all.find((x) => x.name.toLowerCase() === String(name).toLowerCase());
+  if (!a) throw new Error(`no ${type} named “${name}” (there are: ${all.map((x) => x.name).join(", ") || "none"})`);
+  return a;
+}
+async function openNamed(name) { if (name && (!asset || asset.name !== name)) await openAsset((await findAsset("sketch", name)).id); }
+// a sketch from outside, checked: what's wrong is said plainly, so the agent can fix it
+function checkSketch(sk) {
+  if (!sk || typeof sk !== "object") throw new Error("sketch: expected {w, h, steps, keys: [{v, shapes}], objs}");
+  const out = JSON.parse(JSON.stringify(sk));
+  out.w = out.w | 0; out.h = out.h | 0;
+  if (!(out.w >= 4 && out.w <= 128 && out.h >= 4 && out.h <= 64)) throw new Error(`sketch: w must be 4..128 and h 4..64 (got ${sk.w}x${sk.h})`);
+  out.steps = Math.max(2, Math.min(128, out.steps | 0 || 16));
+  if (!Array.isArray(out.keys) || !out.keys.length) throw new Error("sketch: keys must be a non-empty list of {v: 0..127, shapes: [...]}");
+  const vs = new Set();
+  for (const k of out.keys) {
+    if (!(k.v >= 0 && k.v <= 127)) throw new Error(`sketch: a key's v must be 0..127 (got ${k.v})`);
+    k.v = Math.round(k.v); if (vs.has(k.v)) throw new Error(`sketch: two keys at v ${k.v}`); vs.add(k.v);
+    k.shapes = k.shapes || [];
+    for (const s of k.shapes) {
+      if (!K.KINDS.includes(s.kind)) throw new Error(`sketch: unknown shape kind “${s.kind}” (kinds: ${K.KINDS.join(", ")})`);
+      if (!Number.isInteger(s.id) || s.id < 1) throw new Error("sketch: every shape needs a whole-number id ≥ 1; the same id in two keys is the same object, which moves between them");
+      if (k.shapes.filter((q) => q.id === s.id).length > 1) throw new Error(`sketch: id ${s.id} twice in the key at v ${k.v}`);
+    }
+  }
+  out.objs = Array.isArray(out.objs) ? out.objs : [];
+  try { K.objs(out); K.frames(out); } catch (e) { throw new Error("sketch: it doesn't draw: " + e.message); }
+  return out;
+}
+const gridAscii = (g, w, h) => { const r = []; for (let j = 0; j < h; j++) { let s = ""; for (let i = 0; i < w; i++) s += g[j * w + i] ? "#" : "."; r.push(s); } return r.join("\n"); };
+function pngOf(g, w, h, s) { const c = document.createElement("canvas"); c.width = w * s; c.height = h * s; const x = c.getContext("2d"); x.fillStyle = "#000"; x.fillRect(0, 0, c.width, c.height); x.fillStyle = "#dfeeff"; for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) if (g[j * w + i]) x.fillRect(i * s, j * s, s, s); return c.toDataURL("image/png"); }
+const fbGrid = (fb) => { const g = new Uint8Array(128 * 64); for (let j = 0; j < 64; j++) for (let i = 0; i < 128; i++) g[j * 128 + i] = lit(fb, i, j); return g; };
+// a layout's frames / fonts by name, from the library (as the layout page does)
+async function libResolve(L) {
+  const out = { ...L, bitmaps: { ...(L.bitmaps || {}) }, fonts: { ...(L.fonts || {}) } }, missing = new Set();
+  const sk = await LIB.list("sketch", true), ft = await LIB.list("font", true);
+  for (const els of Object.values(L.pages || {})) for (const el of els || []) {
+    if (el.type === "frames" && el.bmp && !out.bitmaps[el.bmp]) { const a = sk.find((x) => x.data?.bitmap?.[el.bmp]); if (a) out.bitmaps[el.bmp] = a.data.bitmap[el.bmp]; else missing.add("bitmap " + el.bmp); }
+    if (typeof el.font === "string" && el.font !== "" && isNaN(Number(el.font)) && !out.fonts[el.font]) { const a = ft.find((x) => x.name === el.font && x.data?.glyphs); if (a) out.fonts[el.font] = a.data; else missing.add("font " + el.font); }
+  }
+  return { L: out, missing: [...missing] };
+}
+const parseLayout = (data) => { try { return JSON.parse(data.src); } catch (e) { throw new Error("layout: src isn't JSON: " + e.message); } };
+const agentOps = {
+  status: async () => ({
+    sketch: asset ? { id: asset.id, name: asset.name } : null, w: S.w, h: S.h, steps: S.steps, keys: sorted().map(([k]) => k.v), editing_key: key().v,
+    export_name: $("bname").value, place: place(), selected: selIds().map((id) => O(id)?.name),
+    objects: S.objs.map((o) => ({ id: o.id, name: o.name, linked: !!o.linked, appear: o.appear, ...(o.into != null ? { into: O(o.into)?.name } : {}), ...(o.group != null ? { group: G(o.group)?.name } : {}), in_keys: S.keys.filter((k) => inKey(k, o.id)).map((k) => k.v).sort((a, b) => a - b) })),
+  }),
+  list: async ({ type }) => ({ items: (await LIB.list(type || "sketch")).map(({ id, name, tags, updated }) => ({ id, name, tags, updated: new Date(updated).toISOString() })) }),
+  get: async ({ name }) => {
+    if (name && (!asset || asset.name !== name)) { const a = await findAsset("sketch", name); return { id: a.id, name: a.name, export_name: a.data.bname, sketch: a.data.sketch }; }
+    return { id: asset?.id, name: asset?.name, export_name: $("bname").value, sketch: JSON.parse(JSON.stringify(S)) };
+  },
+  open: async ({ name }) => { await openNamed(name); return { opened: asset.name }; },
+  new: async ({ name, sketch, w, h, steps, note }, ctx) => {
+    const sk = sketch ? checkSketch(sketch) : checkSketch({ w: w || 28, h: h || 21, steps: steps || 16, next: 1, objs: [], keys: [{ v: 0, shapes: [] }, { v: 127, shapes: [] }] });
+    if (!sk.place && S.place) sk.place = JSON.parse(JSON.stringify(S.place));
+    const prev = asset?.id;
+    await quietly(() => createAsset(sk, name || "agent sketch"));
+    const me = asset.id, nm = asset.name;
+    ctx.change(`new sketch “${nm}”, ${sk.w}×${sk.h}${note ? ": " + note : ""}`, async () => {
+      if (asset?.id === me) { const other = prev && (await LIB.get(prev)) ? prev : (await LIB.list("sketch")).find((a) => a.id !== me)?.id; if (!other) throw new Error("it's the only sketch: delete it from the library instead"); await openAsset(other); }
+      await LIB.del(me); renderLib();
+    });
+    return { id: me, name: nm, export_name: $("bname").value };
+  },
+  put: async ({ name, sketch, note }, ctx) => {
+    const sk = checkSketch(sketch);
+    await openNamed(name);
+    const me = asset.id, nm = asset.name, before = JSON.parse(JSON.stringify(S));
+    if (!sk.place && S.place) sk.place = JSON.parse(JSON.stringify(S.place));
+    await quietly(() => { push(); S = sk; cur = Math.min(cur, S.keys.length - 1); sel = null; multi = new Set(); changed(); });
+    ctx.change(`changed “${nm}”${note ? ": " + note : ""}`, async () => {
+      if (asset?.id !== me) await openAsset(me);
+      push(); S = before; cur = Math.min(cur, S.keys.length - 1); sel = null; multi = new Set(); changed();
+    });
+    return { name: nm, keys: sorted().map(([k]) => k.v), frames: S.steps };
+  },
+  render: async ({ name, what, value, scale }) => {
+    await openNamed(name);
+    const F = K.frames(S);
+    if (value != null) { $("val").value = Math.max(0, Math.min(127, value | 0)); renderPreview(); }   // you see what it looks at
+    const v = +$("val").value;
+    if (what === "screen") {
+      renderScreen(F[frameOf(v)]);
+      const c = $("scr"), x = c.getContext("2d"), d = x.getImageData(0, 0, c.width, c.height).data, rows = [];
+      for (let j = 0; j < 64; j++) { let s = ""; for (let i = 0; i < 128; i++) { const k = ((j * SZ + 1) * c.width + i * SZ + 1) * 4, b = Math.max(d[k], d[k + 1], d[k + 2]); s += b > 170 ? "#" : b > 45 ? "+" : "."; } rows.push(s); }
+      return { png: c.toDataURL("image/png"), w: c.width, h: c.height, value: v, ascii: rows.join("\n"), note: "# the sketch's pixels, + the screen around it (reference page / guides). " + $("scrMsg").textContent };
+    }
+    if (what === "strip") {
+      const s = Math.max(1, scale || Math.max(2, Math.floor(96 / Math.max(S.w, S.h)))), cols = Math.min(8, F.length), rows = Math.ceil(F.length / cols), gap = 2 * s;
+      const c = document.createElement("canvas"); c.width = cols * (S.w * s + gap) + gap; c.height = rows * (S.h * s + gap) + gap;
+      const x = c.getContext("2d"); x.fillStyle = "#2a3038"; x.fillRect(0, 0, c.width, c.height);
+      F.forEach((g, i) => { const ox = gap + (i % cols) * (S.w * s + gap), oy = gap + Math.floor(i / cols) * (S.h * s + gap); x.fillStyle = "#000"; x.fillRect(ox, oy, S.w * s, S.h * s); x.fillStyle = "#dfeeff"; for (let j = 0; j < S.h; j++) for (let k = 0; k < S.w; k++) if (g[j * S.w + k]) x.fillRect(ox + k * s, oy + j * s, s, s); });
+      return { png: c.toDataURL("image/png"), w: c.width, h: c.height, frames: F.length, ascii: F.map((g, i) => `frame ${i} (value ${K.frameValue(i, S.steps)})\n` + gridAscii(g, S.w, S.h)).join("\n\n"), note: `${F.length} frames, left to right, ${cols} a row` };
+    }
+    const g = F[frameOf(v)], s = Math.max(1, scale || Math.max(4, Math.floor(256 / Math.max(S.w, S.h))));
+    return { png: pngOf(g, S.w, S.h, s), w: S.w * s, h: S.h * s, value: v, frame: frameOf(v), ascii: gridAscii(g, S.w, S.h) };
+  },
+  lib_get: async ({ type, name }) => {
+    const a = await findAsset(type, name);
+    return { id: a.id, name: a.name, type: a.type, tags: a.tags, data: a.data, ...(type === "layout" ? { layout: parseLayout(a.data) } : {}) };
+  },
+  lib_put: async ({ type, name, data, note }, ctx) => {
+    if (!["layout", "font", "part", "screen"].includes(type)) throw new Error(`lib-put: type must be layout, font, part or screen (sketches: use new / put)`);
+    if (!name) throw new Error("lib-put: a name, please");
+    let thumb = "", warn = [];
+    if (type === "layout") {
+      const L = parseLayout(data), { L: full, missing } = await libResolve(L);
+      warn = [...(RUI.validate(full) || []).map(String), ...missing.map((m) => "not in the library yet: " + m)];
+      try { thumb = LIB.thumbOf(fbGrid(RUI.render(full, 1, new Array(32).fill(64)).fb), 128, 64); } catch (e) { warn.push("render: " + e.message); }
+    }
+    const all = await LIB.list(type, true), old = all.find((x) => x.name === name) || null;
+    const a = await quietly(() => LIB.put({ ...(old || { id: LIB.newId(), type, name, tags: [] }), data, ...(thumb ? { thumb } : {}) }));
+    ctx.change(`${old ? "changed" : "added"} ${type} “${name}”${note ? ": " + note : ""}`, async () => { if (old) await LIB.put({ ...old, keepTime: false }); else await LIB.del(a.id); });
+    return { id: a.id, name, [old ? "replaced" : "added"]: true, warnings: warn };
+  },
+  layout_render: async ({ name, page, values, scale }) => {
+    const a = await findAsset("layout", name), { L, missing } = await libResolve(parseLayout(a.data));
+    const p = new Array(32).fill(64); (values || []).forEach((v, i) => { if (i < 32) p[i] = Math.max(0, Math.min(127, +v || 0)); });
+    const { fb, drawn } = RUI.render(L, page || 1, p), g = fbGrid(fb), s = Math.max(1, scale || 4);
+    return { png: pngOf(g, 128, 64, s), w: 128 * s, h: 64 * s, ascii: gridAscii(g, 128, 64), note: (drawn ? "" : `page ${page || 1} has no elements. `) + (missing.length ? "missing from the library: " + missing.join(", ") : ""), warnings: (RUI.validate(L) || []).map(String) };
+  },
+};
+AG = startAgent({ button: $("agentBtn"), ops: agentOps, beforeOpen: () => { showLib(false); showParts(false); } });
+
+addEventListener("hashchange", fromHash);
+startLibrary().then(fromHash);
+</script>
+</body>
+</html>

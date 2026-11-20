@@ -1,0 +1,6 @@
+# your own reference captures (optional, local only): never commit
+priv/
+# board-export output
+exports/
+__pycache__/
+.DS_Store

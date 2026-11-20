@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plugin Board</title>
+<style>
+:root { --bg: #15171a; --panel: #1d2024; --panel2: #24282d; --line: #33383f; --text: #e6e8eb; --dim: #8b929b; --accent: #5fb3ff; --sel: #ffb35f; --ok: #8fdc9f; --bad: #ff7b7b; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+header { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+header h1 { font-size: 14px; margin: 0 10px 0 0; white-space: nowrap; }
+.sp { flex: 1; }
+.btn { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 5px 10px; font: inherit; cursor: pointer; text-decoration: none; white-space: nowrap; }
+.btn:hover { border-color: var(--accent); }
+.btn.on { border-color: var(--sel); color: var(--sel); }
+.btn.primary { background: var(--accent); color: #0b1520; border-color: var(--accent); font-weight: 600; }
+.btn.sm { padding: 2px 8px; font-size: 12px; }
+.btn:disabled { opacity: .4; cursor: default; }
+select, input[type=number] { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; font: inherit; }
+input[type=number] { width: 48px; }
+label { color: var(--dim); display: inline-flex; gap: 5px; align-items: center; }
+.dim { color: var(--dim); font-size: 12px; }
+main { display: grid; grid-template-columns: 400px 1fr; flex: 1; min-height: 0; }
+aside { background: var(--panel); border-right: 1px solid var(--line); overflow: auto; }
+aside h2, section h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); margin: 14px 12px 6px; display: flex; gap: 8px; align-items: center; }
+.prm { display: grid; grid-template-columns: 52px 1fr auto; gap: 2px 10px; padding: 7px 12px; border-left: 3px solid transparent; border-bottom: 1px solid var(--line); cursor: pointer; }
+.prm:hover { background: var(--panel2); }
+.prm.sel { border-left-color: var(--sel); background: var(--panel2); }
+.prm .th { grid-row: span 2; width: 52px; height: 36px; background: #000; border-radius: 3px; display: grid; place-items: center; overflow: hidden; }
+.prm .th img { max-width: 48px; max-height: 32px; image-rendering: pixelated; }
+.prm .th.none { border: 1px dashed #3d5a74; background: transparent; color: #5c7d99; font-size: 10px; }
+.prm .nm b { color: var(--text); }
+.prm .nm span { color: var(--dim); }
+.prm .nm i { font-style: normal; color: var(--dim); font-size: 11px; margin-right: 4px; }
+.prm .ctl { display: flex; gap: 6px; align-items: center; grid-column: 2 / 4; }
+.prm .ctl input[type=range] { flex: 1; min-width: 60px; }
+.prm .ctl b { min-width: 26px; text-align: right; color: var(--sel); font-variant-numeric: tabular-nums; font-size: 12px; }
+.chip { font-size: 10px; border-radius: 9px; padding: 1px 7px; border: 1px solid var(--line); color: var(--dim); background: none; font-family: inherit; cursor: pointer; }
+.chip.empty { border-style: dashed; }
+.chip.draft { color: var(--sel); border-color: #6b5130; }
+.chip.done { color: var(--ok); border-color: #3c6a48; }
+.detail { padding: 8px 12px 12px; display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid var(--line); background: #1a1d21; }
+.detail .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.detail select { max-width: 200px; }
+section.screens { overflow: auto; padding: 4px 18px 24px; }
+.pages { display: flex; flex-wrap: wrap; gap: 18px; }
+.page { display: flex; flex-direction: column; gap: 6px; }
+.page .cap { display: flex; gap: 8px; align-items: center; }
+.oled { background: #000; padding: 10px; border-radius: 8px; box-shadow: inset 0 0 0 2px #0c0c0c, 0 0 0 1px var(--line); }
+.oled canvas { display: block; image-rendering: pixelated; cursor: pointer; }
+.langs { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; margin: 10px 0 2px; }
+.langs .btn.sm.on { background: #2b241b; }
+.langinfo { font-size: 12px; color: var(--dim); margin: 6px 0 4px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.langinfo b { color: var(--text); }
+.cmp { display: grid; grid-template-columns: repeat(auto-fill, minmax(560px, 1fr)); gap: 18px; }
+.cmp .card { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--panel); display: flex; flex-direction: column; gap: 8px; }
+.cmp .card.cur { border-color: var(--sel); }
+.cmp .card .hd { display: flex; gap: 8px; align-items: center; }
+.cmp .card .rule { color: var(--dim); font-size: 12px; line-height: 1.45; }
+.cmp .card .pp { display: flex; gap: 8px; flex-wrap: wrap; }
+.cmp .card canvas { background: #000; image-rendering: pixelated; border-radius: 4px; display: block; }
+.empty-state { padding: 40px; max-width: 560px; color: var(--dim); line-height: 1.6; }
+.empty-state b { color: var(--text); }
+.warn { color: var(--sel); font-size: 12px; margin: 4px 0 0; }
+.legend { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--dim); margin: 8px 0 12px; }
+.legend .sw { display: inline-block; width: 14px; height: 9px; vertical-align: -1px; margin-right: 4px; border: 1px dashed #4a90c8; }
+.legend .sw.s { border: 2px solid var(--sel); }
+dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 16px; width: min(560px, 92vw); }
+dialog textarea { width: 100%; min-height: 220px; background: #0e1012; color: var(--text); border: 1px solid var(--line); border-radius: 5px; font: 12px/1.45 ui-monospace, Menlo, monospace; padding: 8px; }
+dialog::backdrop { background: #0008; }
+/* the agent drawer (agent.js) */
+.drawer { position: fixed; z-index: 30; left: 0; top: 48px; bottom: 0; width: 380px; background: var(--panel); border-right: 1px solid var(--line); overflow: auto; }
+.drawer.right { left: auto; right: 0; border-right: 0; border-left: 1px solid var(--line); width: 340px; }
+.drawer .dh { display: flex; align-items: center; gap: 6px; padding: 10px 12px; }
+.drawer .dh a { color: var(--dim); text-decoration: none; }
+.drawer .dim { color: var(--dim); font-size: 12px; }
+#agentBtn { position: relative; }
+#agentBtn .adot { display: inline-block; width: 7px; height: 7px; border-radius: 4px; background: #555; margin-left: 5px; vertical-align: 1px; }
+#agentBtn.live .adot { background: #78e68c; }
+#agentBtn.busy .adot { background: #5fc8ff; }
+#agentBtn.paused .adot { background: var(--sel); }
+#agentBtn .anew { position: absolute; top: -6px; right: -6px; background: var(--sel); color: #111; border-radius: 8px; font-size: 10px; padding: 0 5px; font-weight: 700; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Plugin board <span style="color:var(--dim);font-weight:400;font-size:11px">v1</span></h1>
+  <select id="boardSel" title="Your boards (one per plugin)"></select>
+  <button class="btn" id="newBtn" title="Start a board from a plugin's manifest.json: every parameter gets a slot">+ From manifest…</button>
+  <input type="file" id="mfFile" accept=".json,application/json" hidden>
+  <select id="model" title="How the Rytm lays out this plugin's knobs"></select>
+  <span class="sp"></span>
+  <button class="btn" id="sweep" title="Turn every knob from 0 to 127 and back">▶ Sweep all</button>
+  <button class="btn" id="dflt" title="Every knob at the plugin's default value">Defaults</button>
+  <button class="btn" id="saveLay" title="Save the pages as a layout in the library (the page the plugin would draw; its graphics stay live by name)">Save as layout</button>
+  <button class="btn" id="png" title="Download each page as a PNG (4×)">PNG</button>
+  <button class="btn" id="expC" title="Download the working set as a C header for rmp_ui.c (every bitmap embedded)">Export C</button>
+  <a class="btn" href="sketch.html" target="rmpui-sketch">Sketch editor ↗</a>
+  <a class="btn" href="layout.html" target="rmpui-layout">Layout ↗</a>
+  <button class="btn" id="agentBtn" title="Agent panel">🤖</button>
+</header>
+<main>
+  <aside>
+    <h2><span id="pcount">Parameters</span><span class="sp"></span><span id="prog" style="text-transform:none;letter-spacing:0"></span></h2>
+    <div id="params"></div>
+    <div id="hostctl"></div>
+  </aside>
+  <section class="screens">
+    <div class="langs" id="langs"></div>
+    <div class="langinfo" id="langinfo"></div>
+    <div class="legend" id="legend"></div>
+    <div class="pages" id="pages"></div>
+    <div id="warns"></div>
+  </section>
+</main>
+<dialog id="mfDlg">
+  <form method="dialog" style="display:flex;flex-direction:column;gap:10px">
+    <b>New board from a manifest</b>
+    <div class="dim">Paste the plugin's <code>manifest.json</code> (its <code>knobs</code> list), or choose the file. Every knob becomes a parameter to design, in the plugin's page order: 8 per Rytm page.</div>
+    <textarea id="mfText" spellcheck="false" placeholder='{ "name": "MY VERB", "knobs": [ { "p": 1, "short": "HDMP", "long": "High damping", "look": "dial" }, ... ] }'></textarea>
+    <div style="display:flex;gap:8px;align-items:center"><button class="btn" type="button" id="mfPick">Choose file…</button><span class="dim" id="mfMsg"></span><span class="sp"></span>
+      <button class="btn" value="cancel">Cancel</button><button class="btn primary" id="mfOk" value="ok">Create board</button></div>
+  </form>
+</dialog>
+<script type="module">
+// board.html - one plugin's whole set of knob graphics, on its real pages. A board (library type "board") lists the
+// plugin's parameters (from its manifest.json) in page order, 8 to a Rytm page (two rows of four 32-px slots), and
+// which sketch draws each (by the sketch's export name, as a layout names it). The pages render with the layout
+// engine (rmpui.js), so what you see is what the plugin would draw; edits in the sketch editor show here at once.
+import * as RUI from "./rmpui.js";
+import * as LIB from "./lib.js";
+import { startAgent } from "./agent.js";
+import { esc } from "./lib-ui.js";
+const $ = (id) => document.getElementById(id);
+const ROWS = [{ gy: 11, gh: 18, ly: 31 }, { gy: 39, gh: 18, ly: 58 }];   // knob graphics rows; label tops
+const SC = 4, PER = 8, CUR_K = "rmpui-board-cur";
+let boards = [], B = null, sel = null, vals = {}, sketches = new Map(), sweeping = 0;
+let view = "work";   // what the pages show: "work" (the board's own set), a language's id, or "compare" (every language)
+
+// ---------- the board's data
+const slug = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+function boardFrom(mf, name) {
+  if (typeof mf === "string") mf = JSON.parse(mf);
+  const knobs = Array.isArray(mf) ? mf : mf.knobs || mf.params;
+  if (!Array.isArray(knobs) || !knobs.length) throw new Error("no knobs: a manifest has a \"knobs\" list");
+  const base = slug((mf.name || name || "plugin").replace(/^\d+\s*/, "")) || "plugin";   // "2 MY VERB" -> my_verb
+  const params = knobs.map((k, i) => ({
+    p: Number(k.p) || i + 1, short: String(k.short || k.name || `P${k.p || i + 1}`).slice(0, 6).toUpperCase(), long: String(k.long || k.short || ""),
+    look: k.look || (k.names ? "list" : "dial"), names: Array.isArray(k.names) ? k.names.map(String) : null, default: Number(k.default) || 0,
+    bmp: `${base}_${slug(k.short || k.name || "p" + (k.p || i + 1))}`, status: "",
+  })).sort((a, b) => a.p - b.p);
+  const fx = mf.kind === "effect" || /(^|[._])(ufx|fx)|reverb|delay|plate|chorus/i.test(`${mf.id || ""} ${mf.name || ""}`);
+  return { plugin: { id: mf.id || "", name: mf.name || name || "plugin", short: mf.short || "", version: mf.version || "" }, params, cell: { w: 24, h: 15 }, model: fx ? "sendfx" : "machine" };
+}
+const statusOf = (q) => (!sketches.has(q.bmp) ? "empty" : q.status === "done" ? "done" : "draft");
+// Page models: which encoder (slot A..H of each page) shows which parameter, as the Rytm lays them out.
+//   machine: a user machine's SRC / SMPL pages, 8 parameters a page.
+//   sendfx:  a user effect on the SEND FX pages (sidecar-mods 0029, as the user set it 2026-11-20): page 1 A TYPE,
+//            B ROUTE, C BASE, D WIDTH (the Sidecar's own), E..H P1..P4; then 8 a page (P5..P12, P13..P16). The
+//            plugin's frame replaces the whole screen, so its layout draws the Sidecar's four too; the host hands
+//            them to the draw as P17 TYPE, P18 ROUTE (0 PRE, 127 POST), P19 BASE, P20 WIDTH (bus filter: high-pass =
+//            BASE, low-pass closes by 127 - BASE - WIDTH).
+const MODELS = { machine: "Machine pages (SRC/SMPL, 8 a page)", sendfx: "Send FX pages (TYPE ROUTE BASE WIDTH, then 4 · 8 · 4)" };
+const HOST = [{ host: "TYPE", p: 17, def: 0 }, { host: "ROUTE", p: 18, def: 0 }, { host: "BASE", p: 19, def: 0 }, { host: "WIDTH", p: 20, def: 127 }];
+const model = () => (B?.data.model in MODELS ? B.data.model : "machine");
+function pagesOf() {   // pages of 8 cells: a parameter, {host: "TYPE"}, or null (empty)
+  const P = B.data.params.slice(), out = [];
+  if (model() === "sendfx") out.push([...HOST, ...[0, 1, 2, 3].map(() => P.shift() || null)]);
+  while (P.length) out.push(Array.from({ length: PER }, () => P.shift() || null));
+  return out;
+}
+function slotOf(q) {
+  const P = pagesOf();
+  for (let pg = 0; pg < P.length; pg++) { const i = P[pg].indexOf(q); if (i >= 0) return { page: pg + 1, slot: i, col: i % 4, row: i >> 2, name: `${pg + 1}${"ABCDEFGH"[i]}` }; }
+  return { page: 0, slot: -1, col: 0, row: 0, name: "?" };
+}
+const isParam = (c) => c && c.p != null && !c.host;
+
+// ---------- the library: sketches by export name (the newest wins a name, as in layouts)
+async function loadSketches() {
+  const m = new Map();
+  for (const a of await LIB.list("sketch", true)) {
+    const bm = a.data?.bitmap; if (!bm) continue;
+    for (const [n, b] of Object.entries(bm)) if (!m.has(n) && b && b.frames) m.set(n, { id: a.id, name: a.name, bitmap: b, thumb: a.thumb, updated: a.updated });
+  }
+  sketches = m;
+}
+async function loadBoards() { boards = await LIB.list("board"); }
+async function saveBoard() { if (!B) return; B = await LIB.put({ ...B, thumb: thumbNow() }); }
+let saveTm = 0; const scheduleSave = () => { clearTimeout(saveTm); saveTm = setTimeout(saveBoard, 300); };
+
+// ---------- the pages, as a layout: header, then each parameter in its slot (its graphic, or its value until it has
+// one) with its label under it. embed: bitmaps included (to render here); without, they stay library names.
+const langOf = (id) => (B?.data.langs || []).find((l) => l.id === id);
+// which sketch draws P: the board's own (its working set), or a language's
+const bmpFor = (q, lang) => (lang ? lang.bmps[q.p] : q.bmp);
+function layoutOf(embed, lang) {
+  const pages = {}, bitmaps = {}, P = pagesOf();
+  P.forEach((list, pi) => {
+    const els = [{ type: "text", x: 2, y: 1, text: B.data.plugin.name.toUpperCase(), font: 0 }];
+    if (P.length > 1) els.push({ type: "text", x: 98, y: 1, w: 28, align: "right", text: `${pi + 1}/${P.length}`, font: 0 });
+    els.push({ type: "line", x: 0, y: 8, x2: 127, y2: 8, dotted: true });
+    list.forEach((q, i) => {
+      const col = i % 4, R = ROWS[i >> 2];
+      if (!q) return;
+      if (q.host) {   // the Sidecar's own control on this page (values in P17..P20), drawn the same for every effect
+        const mid = R.gy + Math.floor(R.gh / 2) - 3;
+        if (q.host === "TYPE") els.push({ type: "text", x: col * 32, y: mid, w: 32, align: "center", text: (B.data.plugin.short || B.data.plugin.name).toUpperCase().slice(0, 5), font: 1 });
+        if (q.host === "ROUTE") els.push({ type: "value", x: col * 32, y: mid, w: 32, align: "center", p: q.p, font: 1, fmt: "list", items: ["PRE", "POST"] });
+        if (q.host === "BASE") els.push({ type: "band", x: col * 32 + 1, y: R.gy + 2, w: 62, h: 14, a: 19, d: 20, frame: true });   // one band across BASE | WIDTH
+        els.push({ type: "text", x: col * 32, y: R.ly, w: 32, align: "center", text: q.host, font: 0 });
+        return;
+      }
+      const bn = bmpFor(q, lang), sk = sketches.get(bn);
+      if (sk) {
+        const b = sk.bitmap, x = col * 32 + Math.floor((32 - b.w) / 2), y = Math.max(9, R.gy + Math.floor((R.gh - b.h) / 2));
+        els.push({ type: "frames", x, y, p: q.p, bmp: bn });
+        if (embed) bitmaps[bn] = b;
+      } else {
+        const list = q.look === "list" && q.names?.length;
+        els.push({ type: "value", x: col * 32, y: R.gy + Math.floor(R.gh / 2) - 3, w: 32, align: "center", p: q.p, font: 1, ...(list ? { fmt: "list", items: q.names } : {}) });
+      }
+      els.push({ type: "text", x: col * 32, y: R.ly, w: 32, align: "center", text: q.short, font: 0 });
+    });
+    pages[pi + 1] = els;
+  });
+  return { format: "rmpui-1", name: slug(B.data.plugin.name) || "board", pages, ...(embed ? { bitmaps } : {}) };
+}
+function pvals() {
+  const p = new Array(32).fill(64);
+  if (model() === "sendfx") for (const h of HOST) p[h.p - 1] = vals[h.p] ?? h.def;
+  for (const q of B.data.params) if (q.p >= 1 && q.p <= 32) p[q.p - 1] = vals[q.p] ?? q.default ?? 64; return p; }
+const lit = (fb, x, y) => (fb[y * 16 + (x >> 3)] >> (7 - (x & 7))) & 1;   // rmpUI's framebuffer: rows of 16 bytes, MSB left
+function fbOf(page, L) { return RUI.render(L, page, pvals()).fb; }
+function thumbNow() {
+  try { const fb = fbOf(1, layoutOf(true)), g = new Uint8Array(128 * 64); for (let y = 0; y < 64; y++) for (let x = 0; x < 128; x++) g[y * 128 + x] = lit(fb, x, y); return LIB.thumbOf(g, 128, 64, 128); }
+  catch (e) { return ""; }
+}
+
+// ---------- drawing
+function paint(c, fb, s) {
+  const x = c.getContext("2d"); x.fillStyle = "#000"; x.fillRect(0, 0, c.width, c.height); x.fillStyle = "#dfeeff";
+  for (let y = 0; y < 64; y++) for (let i = 0; i < 128; i++) if (lit(fb, i, y)) x.fillRect(i * s, y * s, s, s);
+}
+function renderCompare() {
+  const host = $("pages"), langs = B.data.langs || [], n = pagesOf().length;
+  if (!host.querySelector(".cmp") || host.querySelectorAll(".cmp .card").length !== langs.length) {
+    host.innerHTML = `<div class="cmp">${langs.map((l) => `<div class="card${B.data.lang === l.id ? " cur" : ""}" data-lang="${l.id}">
+      <div class="hd"><b>${esc(l.name)}</b>${B.data.lang === l.id ? `<span class="chip done">in use</span>` : ""}<span class="sp"></span>
+        <button class="btn sm" data-view="${l.id}">Look closer</button><button class="btn sm primary" data-use="${l.id}">Use this language</button></div>
+      <div class="rule">${esc(l.rule || "")}</div>
+      <div class="pp">${Array.from({ length: n }, (_, i) => `<canvas data-page="${i + 1}" width="${256}" height="${128}"></canvas>`).join("")}</div></div>`).join("")}</div>`;
+  }
+  host.querySelectorAll(".cmp .card").forEach((card) => {
+    const L = layoutOf(true, langOf(card.dataset.lang));
+    card.querySelectorAll("canvas").forEach((c) => paint(c, fbOf(+c.dataset.page, L), 2));
+  });
+  $("warns").innerHTML = "";
+}
+function renderPages() {
+  const host = $("pages");
+  if (!B) { host.innerHTML = ""; return; }
+  if (view === "compare") return renderCompare();
+  if (host.querySelector(".cmp")) host.innerHTML = "";
+  const lang = langOf(view), L = layoutOf(true, lang), P = pagesOf();
+  if (host.children.length !== P.length) {
+    host.innerHTML = P.map((_, i) => { const ps = P[i].filter(isParam); return `<div class="page"><div class="cap"><b>Page ${i + 1}</b><span class="dim">${ps.length ? `${ps.map((q) => q.short).join(" ")}` : ""}${P[i].some((c) => c && c.host) ? " · A–D: the Sidecar's TYPE ROUTE BASE WIDTH" : ""}</span></div><div class="oled"><canvas data-page="${i + 1}" width="${128 * SC}" height="${64 * SC}"></canvas></div></div>`; }).join("");
+    host.querySelectorAll("canvas").forEach((c) => {
+      c.onclick = (e) => { const r = c.getBoundingClientRect(), x = ((e.clientX - r.left) / r.width) * 128, y = ((e.clientY - r.top) / r.height) * 64;
+        const pg = +c.dataset.page, col = Math.min(3, Math.floor(x / 32)), row = y < 35 ? 0 : 1, q = P[pg - 1][row * 4 + col]; if (isParam(q)) select(q.p, true); };
+    });
+  }
+  host.querySelectorAll("canvas").forEach((c) => {
+    const pg = +c.dataset.page, fb = fbOf(pg, L), x = c.getContext("2d");
+    paint(c, fb, SC);
+    P[pg - 1].forEach((q, i) => {   // slots: dashed blue = no graphic yet, orange = the one you're on
+      if (!isParam(q)) return;
+      const col = i % 4, R = ROWS[i >> 2], st = lang ? (sketches.has(bmpFor(q, lang)) ? "draft" : "empty") : statusOf(q);
+      if (q.p !== sel && st !== "empty") return;
+      x.save(); x.strokeStyle = q.p === sel ? "#ffb35f" : "#4a90c8"; x.lineWidth = q.p === sel ? 2 : 1; if (q.p !== sel) x.setLineDash([4, 4]);
+      x.strokeRect(col * 32 * SC + 3, (R.gy - 1) * SC, 32 * SC - 6, (R.ly + 6 - R.gy + 1) * SC); x.restore();
+    });
+  });
+  const errs = RUI.validate(L);
+  const big = B.data.params.filter((q) => { const s = sketches.get(bmpFor(q, lang)); return s && (s.bitmap.w > 32 || s.bitmap.h > ROWS[0].gh); }).map((q) => `${q.short} is ${sketches.get(bmpFor(q, lang)).bitmap.w}×${sketches.get(bmpFor(q, lang)).bitmap.h}: bigger than its slot (32×${ROWS[0].gh}; 32 wide meets the next slot, for a frame shared across two)`);
+  const order = outOfOrder() ? [`Slots are not in the plugin's order (${B.data.params.map((q) => q.short).join(" ")}): on the Rytm the encoders follow the plugin's parameter order, so change the plugin's knob order to match before using this layout.`] : [];
+  const hostw = [];
+  $("warns").innerHTML = [...order, ...errs, ...big, ...hostw].map((w) => `<div class="warn">⚠ ${esc(w)}</div>`).join("");
+}
+function renderParams() {
+  if (!B) { $("params").innerHTML = ""; $("prog").textContent = ""; return; }
+  const P = B.data.params, n = { empty: 0, draft: 0, done: 0 }; P.forEach((q) => n[statusOf(q)]++);
+  $("pcount").textContent = `${P.length} parameters`;
+  $("prog").textContent = `${n.done} done · ${n.draft} draft · ${n.empty} empty`;
+  const opts = [...sketches.entries()].map(([bn, s]) => `<option value="${esc(bn)}">${esc(s.name)} (${esc(bn)})</option>`).join("");
+  $("params").innerHTML = P.map((q) => {
+    const st = statusOf(q), sk = sketches.get(q.bmp), { name: slotName } = slotOf(q), v = vals[q.p] ?? q.default ?? 64;
+    const shown = q.look === "list" && q.names?.length ? q.names[Math.min(q.names.length - 1, Math.floor((v * q.names.length) / 128))] : v;
+    return `<div class="prm${q.p === sel ? " sel" : ""}" data-p="${q.p}">
+      <div class="th${sk ? "" : " none"}">${sk ? `<img src="${sk.thumb || ""}" alt="">` : "none"}</div>
+      <div class="nm"><i>P${q.p}</i><b>${esc(q.short)}</b> <span>${esc(q.long)}</span></div>
+      <button class="chip ${st}" data-chip title="${st === "empty" ? "No graphic yet" : st === "draft" ? "Click to mark done" : "Click to mark draft again"}">${st}</button>
+      <div class="ctl"><input type="range" min="0" max="127" value="${v}" data-v><b>${esc(shown)}</b><span class="dim">${slotName}</span></div>
+    </div>` + (q.p === sel ? `<div class="detail">
+      <div class="row">${sk ? `<button class="btn sm primary" data-open>Edit “${esc(sk.name)}” ↗</button>` : `<button class="btn sm primary" data-start>Start drawing ↗</button>`}
+        <span class="dim">exports as <code>${esc(q.bmp)}</code></span></div>
+      <div class="row"><label>Use another sketch <select data-use><option value="">…</option>${opts}</select></label></div>
+      <div class="row"><span class="dim">Slot</span><button class="btn sm" data-move="-1" title="Swap with the slot before">◀ Move</button><button class="btn sm" data-move="1" title="Swap with the slot after">Move ▶</button>
+        <span class="dim">(the plugin's knob order must match)</span></div>
+      <div class="dim">${q.look === "list" ? `A switch: ${esc((q.names || []).join(" / "))}. ` : ""}Default ${q.default}. ${sk ? `${sk.bitmap.w}×${sk.bitmap.h}, ${sk.bitmap.frames.length} frames.` : `Starts as ${B.data.cell.w}×${B.data.cell.h}, like the others.`}</div>
+    </div>` : "");
+  }).join("");
+}
+function renderLangs() {
+  const langs = B?.data.langs || [];
+  if (!B || !langs.length) { $("langs").innerHTML = ""; $("langinfo").innerHTML = ""; if (view !== "work") view = "work"; return; }
+  if (view !== "work" && view !== "compare" && !langOf(view)) view = "work";
+  const tab = (v, t, title) => `<button class="btn sm${view === v ? " on" : ""}" data-tab="${v}" title="${esc(title || "")}">${t}</button>`;
+  $("langs").innerHTML = `<span class="dim" style="margin-right:4px">Design language</span>` + tab("work", "Working set", "The board's own graphics: what you're designing") +
+    langs.map((l) => tab(l.id, esc(l.name) + (B.data.lang === l.id ? " ✓" : ""), l.rule)).join("") + tab("compare", "⊞ Compare all", "Every language as whole pages, side by side");
+  const l = langOf(view);
+  $("langinfo").innerHTML = l ? `<b>${esc(l.name)}</b><span>${esc(l.rule || "")}</span><button class="btn sm primary" data-use="${l.id}">Use this language</button>`
+    : view === "compare" ? `<span>Each language on the whole plugin. ▶ Sweep all turns every knob in all of them. Pick one to work in: its graphics become the board's working set (you then edit them, or draw over them).</span>`
+    : B.data.lang && langOf(B.data.lang) ? `<span>Working in <b>${esc(langOf(B.data.lang).name)}</b>.</span>` : "";
+}
+async function useLang(id) {
+  const l = langOf(id); if (!l) return;
+  for (const q of B.data.params) if (l.bmps[q.p]) { q.bmp = l.bmps[q.p]; q.status = ""; }
+  B.data.lang = id; view = "work"; await saveBoard(); $("pages").innerHTML = ""; renderAll();
+}
+function setView(v) { view = v; $("pages").innerHTML = ""; renderLangs(); renderPages(); }
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-tab]"); if (t) return setView(t.dataset.tab);
+  const lv = e.target.closest("[data-view]"); if (lv) return setView(lv.dataset.view);
+  const u = e.target.closest("[data-use]"); if (u && u.tagName === "BUTTON") return useLang(u.dataset.use);
+});
+function renderHost() {
+  if (!B || model() !== "sendfx") { $("hostctl").innerHTML = ""; return; }
+  const show = (h, v) => (h.host === "ROUTE" ? (v < 64 ? "PRE" : "POST") : v);
+  $("hostctl").innerHTML = `<h2>The Sidecar's controls <span class="dim" style="text-transform:none;letter-spacing:0">page 1 A–D, P17–P20</span></h2>` +
+    HOST.filter((h) => h.host !== "TYPE").map((h) => { const v = vals[h.p] ?? h.def; return `<div class="prm" style="cursor:default"><div class="th none">host</div>
+      <div class="nm"><i>P${h.p}</i><b>${h.host}</b> <span>${{ ROUTE: "send before / after", BASE: "bus high-pass", WIDTH: "band width (low-pass)" }[h.host]}</span></div><span></span>
+      <div class="ctl"><input type="range" min="0" max="127" value="${v}" data-hv="${h.p}"><b>${show(h, v)}</b></div></div>`; }).join("");
+}
+$("hostctl").addEventListener("input", (e) => { const t = e.target.closest("[data-hv]"); if (!t) return; const h = HOST.find((x) => x.p === +t.dataset.hv); vals[h.p] = +t.value; t.nextElementSibling.textContent = h.host === "ROUTE" ? (vals[h.p] < 64 ? "PRE" : "POST") : vals[h.p]; renderPages(); });
+function renderLegend() {
+  $("legend").innerHTML = B ? `<span><span class="sw"></span>no graphic yet (shows its value)</span><span><span class="sw s"></span>selected</span><span>Click a slot or a parameter · drag its slider to turn the knob · the sketch editor's changes show here as you draw</span>` : "";
+}
+function renderModel() {
+  $("model").innerHTML = Object.entries(MODELS).map(([k, t]) => `<option value="${k}">${t}</option>`).join(""); $("model").disabled = !B;
+  if (B) $("model").value = model();
+}
+$("model").onchange = async () => { if (!B) return; B.data.model = $("model").value; await saveBoard(); $("pages").innerHTML = ""; renderAll(); };
+function renderBoards() {
+  $("boardSel").innerHTML = boards.length ? boards.map((b) => `<option value="${b.id}">${esc(b.name)}</option>`).join("") : `<option value="">No boards yet</option>`;
+  if (B) $("boardSel").value = B.id;
+}
+function renderAll() {
+  renderBoards(); renderModel(); renderLangs(); renderLegend(); renderParams(); renderHost(); renderPages();
+  if (!B) $("pages").innerHTML = `<div class="empty-state"><b>One board per plugin.</b> Start one from the plugin's <code>manifest.json</code> (<b>+ From manifest…</b>): every parameter gets its slot on the real Rytm pages, 8 to a page. Then design them one by one, or as a set, and see them all together as you go.</div>`;
+}
+function select(p, scroll) {
+  sel = sel === p && !scroll ? null : p; renderParams(); renderPages();
+  if (scroll) document.querySelector(`.prm[data-p="${p}"]`)?.scrollIntoView({ block: "nearest" });
+}
+const byP = (p) => B.data.params.find((q) => q.p === +p);
+
+// ---------- events
+$("params").addEventListener("click", async (e) => {
+  const row = e.target.closest(".prm"), det = e.target.closest(".detail");
+  if (row && e.target.closest("[data-chip]")) { const q = byP(row.dataset.p); if (statusOf(q) !== "empty") { q.status = q.status === "done" ? "" : "done"; await saveBoard(); renderParams(); } return; }
+  if (row && !e.target.closest("input")) { select(+row.dataset.p); return; }
+  if (!det) return;
+  const q = byP(sel);
+  if (e.target.closest("[data-open]")) window.open(`sketch.html#open=${sketches.get(q.bmp).id}`, "rmpui-sketch");
+  const mv = e.target.closest("[data-move]"); if (mv) { await moveParam(q.p, +mv.dataset.move); return; }
+  if (e.target.closest("[data-start]")) { const { slot } = slotOf(q); window.open(`sketch.html#new=${encodeURIComponent(q.bmp)}&w=${B.data.cell.w}&h=${B.data.cell.h}&slot=${slot}`, "rmpui-sketch"); }
+});
+$("params").addEventListener("change", async (e) => { if (e.target.matches("[data-use]") && e.target.value) { byP(sel).bmp = e.target.value; await saveBoard(); renderParams(); renderPages(); } });
+$("params").addEventListener("input", (e) => {
+  if (!e.target.matches("[data-v]")) return;
+  const q = byP(e.target.closest(".prm").dataset.p); vals[q.p] = +e.target.value;
+  const b = e.target.nextElementSibling, v = vals[q.p];
+  b.textContent = q.look === "list" && q.names?.length ? q.names[Math.min(q.names.length - 1, Math.floor((v * q.names.length) / 128))] : v;
+  renderPages();
+});
+$("boardSel").onchange = () => openBoard($("boardSel").value);
+$("newBtn").onclick = () => { $("mfMsg").textContent = ""; $("mfDlg").showModal(); };
+$("mfPick").onclick = () => $("mfFile").click();
+$("mfFile").onchange = async () => { const f = $("mfFile").files[0]; if (f) { $("mfText").value = await f.text(); $("mfMsg").textContent = f.name; } $("mfFile").value = ""; };
+$("mfOk").onclick = async (e) => {
+  e.preventDefault();
+  try { const b = await createBoard($("mfText").value); $("mfDlg").close(); select(b.data.params[0].p); }
+  catch (err) { $("mfMsg").textContent = "⚠ " + err.message; }
+};
+$("sweep").onclick = () => {
+  if (sweeping) { cancelAnimationFrame(sweeping); sweeping = 0; $("sweep").textContent = "▶ Sweep all"; renderParams(); return; }
+  $("sweep").textContent = "■ Stop"; const t0 = performance.now();
+  const tick = (t) => { const ph = ((t - t0) / 3000) % 2, v = Math.round((ph < 1 ? ph : 2 - ph) * 127); for (const q of B?.data.params || []) vals[q.p] = v; renderPages(); sweeping = requestAnimationFrame(tick); };
+  sweeping = requestAnimationFrame(tick);
+};
+$("dflt").onclick = () => { vals = {}; renderParams(); renderPages(); };
+$("saveLay").onclick = async () => { if (!B) return; const r = await saveLayout(); flash($("saveLay"), r.replaced ? "✓ layout updated" : "✓ saved as layout"); };
+$("png").onclick = () => { if (!B) return; for (const c of document.querySelectorAll("#pages canvas")) { const a = document.createElement("a"); a.href = c.toDataURL("image/png"); a.download = `${slug(B.name)}_page${c.dataset.page}.png`; a.click(); } };
+$("expC").onclick = () => {
+  if (!B) return;
+  const L = layoutOf(true, null), id = slug(B.data.plugin.name) || "board", errs = RUI.validate(L);
+  if (errs.length && !confirm(`The layout has problems:\n${errs.slice(0, 6).join("\n")}\n\nExport anyway?`)) return;
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([RUI.toC(L, id + "_ui")], { type: "text/x-c" }));
+  a.download = `${id}_ui.h`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); flash($("expC"), `✓ ${id}_ui.h`);
+};
+function flash(b, t) { const o = b.textContent; b.textContent = t; setTimeout(() => (b.textContent = o), 1600); }
+
+// ---------- slot order: the board's parameters in slot order (A..H, page by page). The plugin decides which knob turns
+// which parameter (knob A = its first), so a board whose order differs needs the plugin's order changed to match.
+async function moveParam(p, d) {
+  const P = B.data.params, i = P.findIndex((q) => q.p === p), j = i + d;
+  if (i < 0 || j < 0 || j >= P.length) return;
+  [P[i], P[j]] = [P[j], P[i]]; await saveBoard(); $("pages").innerHTML = ""; renderAll(); select(p, true);
+}
+const outOfOrder = () => B.data.params.filter((q, i) => i > 0 && q.p < B.data.params[i - 1].p).length > 0;
+
+// ---------- actions (the page's buttons and the agent share them)
+async function createBoard(mf, name) {
+  const data = boardFrom(mf, name);
+  const a = await LIB.put({ id: LIB.newId(), type: "board", name: await LIB.freeName("board", name || data.plugin.name), tags: [], data });
+  await loadBoards(); await openBoard(a.id); await saveBoard(); return B;
+}
+async function openBoard(id) {
+  const a = await LIB.get(id); if (!a) return;
+  B = a; vals = {}; sel = null; view = "work"; try { localStorage.setItem(CUR_K, id); } catch (e) {}
+  $("pages").innerHTML = ""; renderAll();
+}
+async function saveLayout() {
+  const L = layoutOf(false), name = B.name, all = await LIB.list("layout", true), old = all.find((x) => x.name === name);
+  await LIB.put({ ...(old || { id: LIB.newId(), type: "layout", name, tags: [] }), data: { src: JSON.stringify(L, null, 1) }, thumb: thumbNow() });
+  return { name, replaced: !!old };
+}
+async function findBoard(name) {
+  if (!name) { if (!B) throw new Error("no board is open"); return B; }
+  const a = boards.find((b) => b.name === name); if (!a) throw new Error(`no board “${name}” (boards: ${boards.map((b) => b.name).join(", ") || "none"})`);
+  if (!B || B.id !== a.id) await openBoard(a.id); return B;
+}
+const gridAscii = (fb) => { const r = []; for (let y = 0; y < 64; y++) { let s = ""; for (let x = 0; x < 128; x++) s += lit(fb, x, y) ? "#" : "."; r.push(s); } return r.join("\n"); };
+
+// ---------- the agent (tools/rmpui.py board-*)
+const agentOps = {
+  board_list: async () => ({ items: boards.map(({ id, name, updated }) => ({ id, name, updated: new Date(updated).toISOString() })) }),
+  board_get: async ({ name }) => {
+    const b = await findBoard(name);
+    return { name: b.name, plugin: b.data.plugin, cell: b.data.cell, langs: (b.data.langs || []).map((l) => ({ name: l.name, rule: l.rule, bmps: l.bmps, in_use: b.data.lang === l.id })), params: b.data.params.map((q) => ({ ...q, state: statusOf(q), sketch: sketches.get(q.bmp)?.name || null, slot: slotOf(q) })) };
+  },
+  board_new: async ({ manifest, name }, ctx) => {
+    const b = await createBoard(manifest, name);
+    ctx.change(`new board “${b.name}”: ${b.data.params.length} parameters`, async () => { await LIB.del(b.id); await loadBoards(); B = null; const n = boards[0]; if (n) await openBoard(n.id); else renderAll(); });
+    return { name: b.name, params: b.data.params.length, pages: pagesOf().length };
+  },
+  board_set: async ({ name, p, bmp, status, note }, ctx) => {
+    const b = await findBoard(name), q = byP(p); if (!q) throw new Error(`no P${p} on “${b.name}”`);
+    const before = { bmp: q.bmp, status: q.status };
+    if (bmp != null) { if (!sketches.has(bmp)) throw new Error(`no sketch exports “${bmp}” (export names: ${[...sketches.keys()].join(", ")})`); q.bmp = bmp; }
+    if (status != null) { if (!["draft", "done"].includes(status)) throw new Error("status: draft or done"); q.status = status === "done" ? "done" : ""; }
+    await saveBoard(); select(q.p, true);
+    ctx.change(`${q.short}: ${bmp != null ? `drawn by “${sketches.get(bmp).name}”` : ""}${status != null ? ` marked ${status}` : ""}${note ? ": " + note : ""}`, async () => { Object.assign(byP(p), before); await saveBoard(); renderAll(); });
+    return { p: q.p, bmp: q.bmp, state: statusOf(q) };
+  },
+  board_lang_put: async ({ name, lang }, ctx) => {
+    const b = await findBoard(name); if (!lang || !lang.name) throw new Error("lang: {name, rule, bmps: {P: export name}}");
+    const miss = Object.entries(lang.bmps || {}).filter(([, bn]) => !sketches.has(bn)).map(([p, bn]) => `P${p} ${bn}`);
+    if (miss.length) throw new Error("no sketch exports: " + miss.join(", "));
+    b.data.langs = b.data.langs || []; const old = b.data.langs.find((l) => l.name === lang.name), before = old ? JSON.parse(JSON.stringify(old)) : null;
+    const l = { id: old?.id || LIB.newId(), name: String(lang.name), rule: String(lang.rule || ""), bmps: Object.fromEntries(Object.entries(lang.bmps || {}).map(([p, bn]) => [+p, bn])) };
+    if (old) Object.assign(old, l); else b.data.langs.push(l);
+    await saveBoard(); $("pages").innerHTML = ""; renderAll();
+    ctx.change(`${old ? "updated" : "added"} design language “${l.name}”`, async () => { if (before) Object.assign(langOf(l.id), before); else B.data.langs = B.data.langs.filter((x) => x.id !== l.id); await saveBoard(); $("pages").innerHTML = ""; renderAll(); });
+    return { id: l.id, name: l.name, knobs: Object.keys(l.bmps).length };
+  },
+  board_view: async ({ name, view: v }) => { const b = await findBoard(name); const l = (b.data.langs || []).find((x) => x.name === v || x.id === v); setView(v === "compare" ? "compare" : l ? l.id : "work"); return { view }; },
+  board_order: async ({ name, order }, ctx) => {
+    const b = await findBoard(name), P = b.data.params, before = P.map((q) => q.p);
+    const want = (order || []).map(Number);
+    if (want.length !== P.length || new Set(want).size !== P.length || want.some((p) => !P.some((q) => q.p === p))) throw new Error(`order: every P once (${before.join(",")})`);
+    b.data.params = want.map((p) => P.find((q) => q.p === p)); await saveBoard(); $("pages").innerHTML = ""; renderAll();
+    ctx.change(`slot order ${b.data.params.map((q) => q.short).join(" ")}`, async () => { B.data.params = before.map((p) => B.data.params.find((q) => q.p === p)); await saveBoard(); $("pages").innerHTML = ""; renderAll(); });
+    return { order: want, plugin_order_differs: outOfOrder() };
+  },
+  board_use_lang: async ({ name, lang }, ctx) => {
+    const b = await findBoard(name), l = (b.data.langs || []).find((x) => x.name === lang || x.id === lang); if (!l) throw new Error(`no language “${lang}”`);
+    const before = b.data.params.map((q) => ({ p: q.p, bmp: q.bmp, status: q.status })), was = b.data.lang;
+    await useLang(l.id);
+    ctx.change(`working set: “${l.name}”`, async () => { for (const o of before) Object.assign(byP(o.p), o); B.data.lang = was; await saveBoard(); $("pages").innerHTML = ""; renderAll(); });
+    return { lang: l.name };
+  },
+  // everything a plugin needs: the layout with its bitmaps embedded (works on its own), its C tables, page pictures
+  board_export: async ({ name, lang, scale }) => {
+    const b = await findBoard(name), LG = lang ? (b.data.langs || []).find((x) => x.name === lang || x.id === lang) : null;
+    if (lang && !LG) throw new Error(`no language “${lang}”`);
+    const L = layoutOf(true, LG), id = slug(b.data.plugin.name) || "board", s = Math.max(1, Math.min(8, scale || 4)), pngs = [];
+    const missing = b.data.params.filter((q) => !sketches.has(bmpFor(q, LG))).map((q) => q.short);
+    for (let pg = 1; pg <= pagesOf().length; pg++) {
+      const c = document.createElement("canvas"); c.width = 128 * s; c.height = 64 * s; paint(c, fbOf(pg, L), s); pngs.push(c.toDataURL("image/png"));
+    }
+    return { name: b.name, id, layout: L, c: RUI.toC(L, id + "_ui"), cost: RUI.cost(L), warnings: RUI.validate(L), missing, pngs,
+      model: model(), values: pvals(), slots: b.data.params.map((q) => ({ slot: slotOf(q).name, p: q.p, short: q.short, long: q.long, bmp: bmpFor(q, LG) })),
+      plugin_order_differs: outOfOrder() };
+  },
+  // the plugin renumbered its parameters (e.g. swapped two knobs): {map: {old P: new P}}; the board's parameters, every
+  // language's bitmaps and the knob values follow, so the export names the new numbers
+  board_renumber: async ({ name, map }, ctx) => {
+    const b = await findBoard(name), M = Object.fromEntries(Object.entries(map || {}).map(([a, c]) => [+a, +c])), P = b.data.params;
+    const olds = Object.keys(M).map(Number), news = Object.values(M);
+    if (!olds.length || olds.some((p) => !P.some((q) => q.p === p))) throw new Error(`map: {old P: new P} for parameters on the board (${P.map((q) => q.p).join(",")})`);
+    const after = P.map((q) => M[q.p] ?? q.p);
+    if (new Set(after).size !== P.length) throw new Error("map: two parameters would share a number (map every one that moves)");
+    const before = JSON.parse(JSON.stringify(b.data));
+    P.forEach((q) => { q.p = M[q.p] ?? q.p; });
+    for (const l of b.data.langs || []) l.bmps = Object.fromEntries(Object.entries(l.bmps).map(([p, bn]) => [M[+p] ?? +p, bn]));
+    vals = {}; await saveBoard(); $("pages").innerHTML = ""; renderAll();
+    ctx.change(`renumbered ${olds.map((p) => `P${p}→P${M[p]}`).join(", ")}`, async () => { B.data = before; await saveBoard(); $("pages").innerHTML = ""; renderAll(); });
+    return { params: P.map((q) => `P${q.p} ${q.short}`), plugin_order_differs: outOfOrder() };
+  },
+  board_model: async ({ name, model: m }, ctx) => {
+    const b = await findBoard(name); if (!(m in MODELS)) throw new Error(`model: ${Object.keys(MODELS).join(" or ")}`);
+    const was = model(); b.data.model = m; await saveBoard(); $("pages").innerHTML = ""; renderAll();
+    ctx.change(`pages: ${MODELS[m]}`, async () => { B.data.model = was; await saveBoard(); $("pages").innerHTML = ""; renderAll(); });
+    return { model: m, slots: b.data.params.map((q) => `${slotOf(q).name} ${q.short}`) };
+  },
+  board_select: async ({ name, p }) => { await findBoard(name); if (p != null) select(+p, true); return { ok: true }; },
+  board_render: async ({ name, page, values, scale, lang }) => {
+    await findBoard(name); const old = vals, LG = lang ? (B.data.langs || []).find((x) => x.name === lang || x.id === lang) : null;
+    if (lang && !LG) throw new Error(`no language “${lang}”`);
+    if (values) { vals = {}; B.data.params.forEach((q, i) => { if (values[i] != null) vals[q.p] = values[i]; }); }
+    const L = layoutOf(true, LG), pg = page || 1, fb = fbOf(pg, L), s = Math.max(1, Math.min(8, scale || 4));
+    const c = document.createElement("canvas"); c.width = 128 * s; c.height = 64 * s; const x = c.getContext("2d");
+    x.fillStyle = "#000"; x.fillRect(0, 0, c.width, c.height); x.fillStyle = "#dfeeff";
+    for (let y = 0; y < 64; y++) for (let i = 0; i < 128; i++) if (lit(fb, i, y)) x.fillRect(i * s, y * s, s, s);
+    vals = values ? old : vals; renderPages();
+    return { png: c.toDataURL("image/png"), ascii: gridAscii(fb), w: 128 * s, h: 64 * s, page: pg, pages: pagesOf().length, warnings: RUI.validate(L) };
+  },
+  board_save_layout: async ({ name }, ctx) => { await findBoard(name); const r = await saveLayout(); ctx.change(`saved the board as layout “${r.name}”`, null); return r; },
+};
+const AG = startAgent({ button: $("agentBtn"), ops: agentOps });
+
+// ---------- live: the sketch editor (another tab) saves, this redraws
+let liveTm = 0;
+LIB.onChange((m) => {
+  if (!["sketch", "board"].includes(m.type)) return;
+  clearTimeout(liveTm);
+  liveTm = setTimeout(async () => {
+    await loadSketches(); await loadBoards();
+    if (B && m.type === "board" && m.id === B.id) { const a = await LIB.get(B.id); if (a) B = a; }
+    renderAll();
+  }, 150);
+});
+
+await Promise.all([loadSketches(), loadBoards()]);
+let start = null; try { start = localStorage.getItem(CUR_K); } catch (e) {}
+const first = boards.find((b) => b.id === start) || boards[0];
+if (first) await openBoard(first.id); else renderAll();
+</script>
+</body>
+</html>

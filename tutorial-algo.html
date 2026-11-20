@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Algorithm Tutorial</title>
+<link rel="stylesheet" href="tutorial.css">
+<style>
+.algos { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.algos .card { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; font-size: 13px; }
+.algos h4 { margin: 0 0 4px; font-size: 14px; }
+.algos ul { margin: 0; padding-left: 16px; color: var(--dim); }
+.algos li { margin: 1px 0; }
+.algos code { font-size: 11px; padding: 0 3px; white-space: nowrap; }
+.glyphs { display: flex; gap: 14px; flex-wrap: wrap; }
+.glyphs figure { margin: 0; text-align: center; color: var(--dim); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Tutorial: an algorithm picker</h1>
+  <p class="sub">Build an FM synth's <b>ALGO</b> display: 8 operator diagrams (25 × 45) and a big number (9 × 11), one picture per algorithm. It's a <b>list</b> control: nothing animates between algorithms, so it's all about making exact pictures fast. About 30–40 minutes; the later algorithms go quickly once you have the parts.</p>
+  <p class="tip">Inspired by the Elektron DN's screens. Not affiliated with Elektron.</p>
+
+
+  <div class="card hero">
+    <figure><canvas id="heroOurs" class="pix"></canvas><figcaption>what you'll build</figcaption></figure>
+    <figure><canvas id="heroNum" class="pix"></canvas><figcaption>number</figcaption></figure>
+    <div style="flex:1;min-width:180px">
+      <div style="color:var(--dim);font-size:12px">value <b id="heroV" style="color:var(--text)">0</b></div>
+      <input type="range" id="heroS" min="0" max="127" value="0" style="width:100%">
+    </div>
+  </div>
+
+  <h2><span class="n">0</span> Look before you draw</h2>
+  <p>Every diagram is made of the same few parts:</p>
+  <ul>
+    <li><b>Operators</b>: a ring (a circle of radius 4, 9 pixels across) with a letter (A, B or C) from the Sidecar's small font inside. The synth has four: A, two Bs (B1, B2) and C.</li>
+    <li><b>A feedback mark</b>: a filled 3 × 3 square at the top right of the operator that feeds back into itself.</li>
+    <li><b>Wires</b>: solid lines from an operator down to the one it modulates.</li>
+    <li><b>Outputs</b>: the operators you hear run down to the bottom edge. Output X is a <b>solid</b> line ending in a 3-pixel foot; output Y is <b>dotted</b>.</li>
+  </ul>
+  <p>Two ideas make this quick:</p>
+  <ol>
+    <li><b>Frames = number of items.</b> With 8 frames and a key at each frame's value, the screen only ever shows your keys, never an in-between. So you just draw 8 pictures.</li>
+    <li><b>Build an operator once, then paste it.</b> An operator is three objects: a white-out (a filled circle that <i>erases</i>, so wires don't show through), the ring, and the letter. Select the three together and they copy, paste and move as one.</li>
+  </ol>
+  <p class="tip">Each step's picture shows what you should have <b>after</b> the step. <b>Load this result</b> puts that into the editor.</p>
+
+  <h2 data-step="1"><span class="n">1</span> Set up: 8 frames, 8 keys, nothing linked</h2>
+  <div class="card step"><div>
+    <ol>
+      <li>In the editor (title <b>v9</b> or later), click <b class="ui">New</b>. Set <b class="ui">Cell</b> to <code>25</code> × <code>45</code> and <b class="ui">Frames</b> to <code>8</code>.</li>
+      <li><b>Untick</b> <b class="ui">New shapes linked</b>. Every key is its own picture.</li>
+      <li>Add keys so you have <code>0 18 36 54 73 91 109 127</code>: click a key, <b class="ui">+ Key</b>, type the value, <kbd>Enter</kbd>. These are exactly the values the 8 frames are taken at; the Frames strip shows a key's frame with a dashed blue border.</li>
+    </ol>
+  </div><figure><canvas data-stage="0" class="pix"></canvas><figcaption>8 empty keys</figcaption><p><button class="btn" data-open="0">Load this result</button></p></figure></div>
+
+  <h2 data-step="2"><span class="n">2</span> Build one operator (on key 0)</h2>
+  <div class="card step"><div>
+    <p>On key <code>0</code>, make the top-right <b>B</b> operator of ALGO 1, centred at <code>(18,8)</code>:</p>
+    <ol>
+      <li><b>White-out:</b> tick <b class="ui">New shapes filled</b>, pick <b class="ui">Circle</b> <kbd>4</kbd> and draw a ring round <code>(18,8)</code>, about 4 pixels out. It snaps to a circle. With <b class="ui">Select / Edit</b> <kbd>V</kbd>, drag its centre handle to <code>(18,8)</code> and its edge handle to <code>(22,8)</code>. In <b>Selected object</b> set <b class="ui">Ink</b> to <b>erase (cut out)</b>. It disappears; that's right, it only erases.</li>
+      <li><b>Ring:</b> untick <b class="ui">New shapes filled</b> and draw the same circle again: centre <code>(18,8)</code>, radius 4.</li>
+      <li><b>Letter:</b> press <kbd>Esc</kbd> (so you start a new object), pick <b class="ui">Pencil</b> <kbd>8</kbd> and paint the B with its top-left at <code>(17,6)</code>. It stays selected, so every stroke adds to it. <kbd>⌥</kbd>-drag erases a stray pixel.</li>
+      <li>Rename the three in <b>Selected object → Name</b>, e.g. "B white-out", "B ring", "letter B".</li>
+    </ol>
+    <div class="glyphs" id="glyphs"></div>
+    <p class="tip">The letter's top-left is always the ring's centre − <code>(1,2)</code>.</p>
+  </div><figure><canvas data-stage="1" class="pix"></canvas><figcaption>one operator</figcaption><p><button class="btn" data-open="1">Load this result</button></p></figure></div>
+
+  <h2 data-step="3"><span class="n">3</span> ALGO 1: paste operators, add wires</h2>
+  <div class="card step"><div>
+    <ol>
+      <li><b>Select the operator:</b> <b class="ui">Select / Edit</b> <kbd>V</kbd>, click the ring, <kbd>Shift</kbd>-click the letter, and <kbd>Shift</kbd>-click the white-out in <b>Objects</b> (it's invisible on the canvas).</li>
+      <li><b>Copy it:</b> <kbd>⌘C</kbd> <kbd>⌘V</kbd> pastes a copy on top, all three selected. Drag it, or nudge it with the arrow keys (<kbd>Shift</kbd>+arrow moves 4), to its place.</li>
+      <li><b>A different letter:</b> click just the copy's letter, <kbd>⌥</kbd>-drag over it with the Pencil to erase, and paint the new one.</li>
+      <li><b>The feedback mark:</b> <b class="ui">Rect</b> <kbd>5</kbd>, filled, corners 0, 3 × 3 at the ring's top right (centre + <code>(4,−6)</code> to centre + <code>(6,−4)</code>).</li>
+      <li><b>Wires:</b> <b class="ui">Line</b> <kbd>2</kbd>, then <b class="ui">▼ Behind</b> until it's under the white-outs, so its ends tuck under the rings. A one-pixel wire is a single click.</li>
+      <li><b>Outputs:</b> X: a line down to row 43 and a 3-pixel foot on row 44. Y: a line with <b class="ui">dotted</b> ticked in Selected object, down to row 44.</li>
+    </ol>
+    <p>ALGO 1 needs:</p>
+    <div class="algos" id="algo1"></div>
+  </div><figure><canvas data-stage="2" class="pix"></canvas><figcaption>ALGO 1 on key 0</figcaption><p><button class="btn" data-open="2">Load this result</button></p></figure></div>
+
+  <h2 data-step="4"><span class="n">4</span> ALGO 2 to 8: copy forward, rearrange</h2>
+  <div class="card"><div>
+    <p>For each next key:</p>
+    <ol>
+      <li>On the key you just finished: <kbd>⌘A</kbd> (select everything) and <kbd>⌘C</kbd>.</li>
+      <li>Click the next key and <kbd>⌘V</kbd>. The same objects arrive there.</li>
+      <li>Move operators into place (select an operator's three parts, then drag or use the arrows), fix letters, and delete wires you don't need. Add new ones.</li>
+    </ol>
+    <p>Here is what each one needs. Coordinates are centres (operators), corners (the feedback mark) or ends (wires and outputs):</p>
+    <div class="algos" id="algoRest"></div>
+  </div></div>
+  <p style="text-align:right"><button class="btn primary" data-open="3">Load the finished diagrams</button></p>
+
+  <h2 data-step="5"><span class="n">5</span> The big number: a second sketch</h2>
+  <div class="card step"><div>
+    <ol>
+      <li><b class="ui">Save sketch</b> first. It downloads the diagram, and <b class="ui">Open sketch</b> brings it back later. The editor holds one sketch at a time.</li>
+      <li><b class="ui">New</b>, <b class="ui">Cell</b> <code>9</code> × <code>11</code>, <b class="ui">Frames</b> <code>8</code>, the same 8 keys, <b>New shapes linked</b> off.</li>
+      <li>With the <b class="ui">Pencil</b>, paint each key's digit (key 0 = 1, key 18 = 2, …). Press <kbd>Esc</kbd> before each new digit. A tip: paint the first, copy it to the next key, then <kbd>⌥</kbd>-erase and add only what differs.</li>
+    </ol>
+    <div class="glyphs" id="digits"></div>
+  </div><figure><canvas id="numFinal" class="pix"></canvas><figcaption>key 127</figcaption><p><button class="btn" id="openNum">Load the finished number</button></p></figure></div>
+
+  <h2 data-step="6"><span class="n">6</span> Put both on the Rytm screen</h2>
+  <ol>
+    <li>Export each sketch with <b class="ui">Copy JSON</b>, named <code>algo</code> and <code>algonum</code>, into your layout's <code>"bitmaps"</code>.</li>
+    <li>Add two frames elements driven by the same param, for example at:</li>
+  </ol>
+  <pre>{ "type": "frames", "bmp": "algo",    "p": 1, "x": 18, "y": 13 }
+{ "type": "frames", "bmp": "algonum", "p": 1, "x": 50, "y": 16 }</pre>
+  <p>Memory: diagram 8 × 45 rows × 4 bytes = <b>1440 B</b>; number 8 × 11 × 2 = <b>176 B</b>. To show the diagram on every page and the number on the first page only, put the first element on every page's layout and the second on page 1.</p>
+
+  <h2><span class="n">✓</span> What you used</h2>
+  <ul>
+    <li><b>Frames = items, a key at each frame value</b>: exact pictures for a list control.</li>
+    <li><b>Unlinked from the start</b>, because every key differs.</li>
+    <li><b>A white-out</b> (a filled circle, Ink: erase) so things behind an operator are hidden.</li>
+    <li><b>Pencil</b> for letters and digits; <kbd>Esc</kbd> starts a new pencil object; <kbd>⌥</kbd> erases.</li>
+    <li><b>Multi-select</b> (<kbd>Shift</kbd>-click, <kbd>⌘A</kbd>), group copy / paste, and arrow-key nudging.</li>
+    <li><b>▼ Behind</b> for drawing order.</li>
+  </ul>
+</div>
+<script type="module">
+import * as K from "./sketch.js";
+import { setup, paint, clone, STORE, sendToEditor } from "./tutorial.js";
+
+let B = null;
+try { const r = await fetch("tutorial-data/algo.json"); if (r.ok) B = await r.json(); } catch (e) {}
+const VALS = [0, 18, 36, 54, 73, 91, 109, 127];
+// stages: 0 keys, 1 one operator on key 0, 2 ALGO 1 on key 0, 3 all eight
+function stage(n) {
+  const keys = n >= 0 ? VALS : [0, 127];
+  const S = { w: 25, h: 45, steps: 8, next: 1, objs: [], keys: keys.map((v) => ({ v, shapes: [] })) };
+  if (!B || n < 1) return S;
+  const put = (k, o) => { const id = S.next++; const { tag, name, ...sh } = o; S.objs.push({ id, name, linked: false, appear: "pop" }); S.keys[k].shapes.push({ ...clone(sh), id }); };
+  if (n === 1) { for (const o of B.algos[0].filter((o) => o.tag === "op").slice(0, 3)) put(0, o); return S; }
+  const upto = n === 2 ? 1 : 8;
+  for (let a = 0; a < upto; a++) for (const o of B.algos[a]) put(a, o);
+  return S;
+}
+function numStage() {
+  const S = { w: 9, h: 11, steps: 8, next: 1, objs: [], keys: VALS.map((v) => ({ v, shapes: [] })) };
+  if (B) B.digits.forEach((pts, a) => { const id = S.next++; S.objs.push({ id, name: `digit ${a + 1}`, linked: false, appear: "pop" }); S.keys[a].shapes.push({ id, kind: "pixels", pts }); });
+  return S;
+}
+const NUM = numStage(), NF = K.frames(NUM);
+await setup({ id: "algo", stage, last: 3, scale: 4, heroScale: 5, filmEvery: 16 });
+// the number beside the hero, following the slider
+const heroNum = document.getElementById("heroNum");
+const showNum = () => paint(heroNum, NF[+document.getElementById("heroS").value >> 4], 7, 9, 11);
+(function tick() { showNum(); requestAnimationFrame(tick); })();
+paint(document.getElementById("numFinal"), NF[7], 8, 9, 11);
+document.getElementById("openNum").onclick = () => {
+  sendToEditor(NUM, "algorithm number");
+};
+
+if (B) {
+  // letters and digits as pictures to copy
+  const gl = document.getElementById("glyphs"), seen = new Set();
+  for (const o of B.algos.flat()) if (o.kind === "pixels" && o.name.startsWith("letter") && !seen.has(o.name)) {
+    seen.add(o.name);
+    const x0 = Math.min(...o.pts.map((p) => p[0])), y0 = Math.min(...o.pts.map((p) => p[1]));
+    const g = new Uint8Array(15); o.pts.forEach(([x, y]) => (g[(y - y0) * 3 + (x - x0)] = 1));
+    const f = document.createElement("figure"), c = document.createElement("canvas"); c.className = "pix"; paint(c, g, 12, 3, 5); f.append(c, o.name); gl.append(f);
+  }
+  const dg = document.getElementById("digits");
+  NF.forEach((g, i) => { const f = document.createElement("figure"), c = document.createElement("canvas"); c.className = "pix"; paint(c, g, 6, 9, 11); f.append(c, `key ${VALS[i]}`); dg.append(f); });
+  // what each algorithm needs
+  const desc = (objs) => {
+    const ops = objs.filter((o) => o.name.endsWith(" ring")), fb = objs.filter((o) => o.name === "feedback");
+    const wires = objs.filter((o) => o.tag === "wire"), outs = objs.filter((o) => o.tag === "out" && !o.name.endsWith("foot"));
+    const p = (q) => `(${q[0]},${q[1]})`;
+    return `<ul>${ops.map((o) => `<li>${o.name[0]} at <code>${p(o.c)}</code></li>`).join("")}` +
+      fb.map((o) => `<li>feedback <code>${p([o.x0, o.y0])}–${p([o.x1, o.y1])}</code></li>`).join("") +
+      wires.map((o) => o.kind === "pixels" ? `<li>wire: click <code>${p(o.pts[0])}</code></li>` : `<li>wire <code>${p(o.a)}–${p(o.b)}</code></li>`).join("") +
+      outs.map((o) => `<li>${o.dotted ? "Y, dotted" : "X + foot"} <code>${p(o.a)}–${p(o.b)}</code></li>`).join("") + "</ul>";
+  };
+  const card = (a) => {
+    const d = document.createElement("div"); d.className = "card";
+    const c = document.createElement("canvas"); c.className = "pix"; paint(c, K.draw(B.algos[a], 25, 45), 3, 25, 45);
+    const t = document.createElement("div"); t.innerHTML = `<h4>ALGO ${a + 1} · key ${VALS[a]}</h4>${desc(B.algos[a])}`;
+    d.append(c, t); return d;
+  };
+  document.getElementById("algo1").append(card(0));
+  for (let a = 1; a < 8; a++) document.getElementById("algoRest").append(card(a));
+}
+</script>
+</body>
+</html>

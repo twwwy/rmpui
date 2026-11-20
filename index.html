@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>rmpUI</title>
+<meta name="description" content="Design 1-bit screens for Rytm Sidecar plugins, in the browser, alone or with an agent.">
+<link rel="stylesheet" href="tutorial.css">
+<style>
+.wrap { max-width: 980px; }
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: center; margin: 8px 0 8px; }
+.hero h1 { font-size: 34px; margin: 0 0 8px; }
+.hero .sub { font-size: 17px; margin: 0 0 16px; }
+.screen { background: #000; border-radius: 10px; padding: 12px; border: 1px solid var(--line); }
+.screen canvas { display: block; width: 384px; height: 192px; image-rendering: pixelated; }
+.screen .cap { color: var(--dim); font-size: 12px; margin-top: 8px; text-align: center; }
+.cta { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn { display: inline-block; text-decoration: none; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 8px 14px; font-weight: 600; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #0b1520; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.grid .card { margin: 0; display: flex; flex-direction: column; text-decoration: none; color: inherit; }
+.grid a.card:hover { border-color: var(--accent); }
+.grid .card b { font-size: 16px; }
+.grid .card span { color: var(--dim); font-size: 14px; margin-top: 4px; }
+.grid .card .go { margin-top: auto; padding-top: 10px; color: var(--accent); font-size: 13px; }
+.flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.flow div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; font-size: 14px; color: var(--dim); }
+.flow div > b:first-child { display: block; color: var(--text); margin-bottom: 4px; }
+pre { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font: 13px/1.5 ui-monospace, Menlo, monospace; margin: 10px 0; }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.two .card { margin: 0; }
+.run { display: flex; flex-direction: column; gap: 6px; }
+.run .dim { color: var(--dim); margin: 0; }
+.demo { background: #0d0e10; border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 6px; height: 410px; display: flex; align-items: center; justify-content: center; gap: 12px; }
+.demo figure { margin: 0; text-align: center; color: var(--dim); font-size: 12px; }
+.demo figcaption b { color: var(--text); font-variant-numeric: tabular-nums; display: inline-block; min-width: 3ch; text-align: left; }
+canvas.px { image-rendering: pixelated; background: #000; border-radius: 4px; display: block; margin: 0 auto 4px; }
+.ed { flex-direction: column; align-items: stretch; justify-content: space-between; gap: 8px; }
+.sl { font-size: 12px; color: var(--dim); margin-bottom: 6px; display: flex; align-items: center; gap: 7px; }
+.sl .n { color: var(--sel); border: 1px solid var(--sel); border-radius: 999px; padding: 0 6px; font-size: 11px; }
+.kthumbs { display: flex; gap: 12px; justify-content: center; }
+.kthumbs figure { margin: 0; text-align: center; font-size: 10px; color: var(--dim); }
+.kthumbs canvas { display: block; outline: 1px dashed #3b6ea0; outline-offset: 2px; border-radius: 2px; margin-bottom: 5px; }
+.kthumbs figure.hit canvas { outline: 2px solid var(--accent); }
+.kthumbs figure.hit { color: var(--accent); }
+.edtop { display: flex; gap: 16px; align-items: center; justify-content: center; }
+.objs { width: 128px; font-size: 12px; }
+.orow { display: flex; align-items: center; gap: 6px; padding: 3px 6px; border-radius: 5px; border: 1px solid transparent; color: var(--dim); }
+.orow span { margin-left: auto; font-size: 10px; }
+.orow.on { color: var(--text); }
+.orow.grow { color: var(--text); border-color: var(--line); background: var(--panel2); }
+.orow.grow span { color: var(--sel); }
+canvas.grid { display: block; border-radius: 4px; }
+.tl { padding: 4px 6px 0; }
+.tlbar { position: relative; height: 22px; border-bottom: 1px solid var(--line); }
+.tlbar .key { position: absolute; bottom: -6px; width: 11px; height: 11px; margin-left: -5px; transform: rotate(45deg); border: 1.5px solid var(--accent); background: #0d0e10; }
+.tlbar .key.hit { background: var(--accent); }
+.tlbar .kl { position: absolute; top: -2px; font-size: 10px; color: var(--dim); transform: translateX(-50%); }
+.tlbar .ph { position: absolute; top: 0; bottom: -8px; width: 2px; margin-left: -1px; background: var(--sel); }
+.tlcap { display: flex; justify-content: space-between; font-size: 11px; color: var(--dim); margin-top: 10px; }
+.tlcap b { color: var(--text); font-variant-numeric: tabular-nums; display: inline-block; min-width: 3ch; }
+.chat { flex-direction: column; align-items: stretch; justify-content: flex-start; }
+.cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+.cmp figure { transition: opacity .3s; }
+.cmp canvas { width: 100%; height: auto; image-rendering: pixelated; border-radius: 3px; display: block; outline: 1px solid transparent; outline-offset: 2px; }
+.cmp figure.on canvas { outline-color: var(--accent); }
+.cmp figure.on figcaption { color: var(--accent); }
+.cmp figure.dim { opacity: .3; }
+.cmp figcaption { font-size: 11px; margin-top: 3px; }
+.feed { display: flex; flex-direction: column; justify-content: flex-end; gap: 5px; font-size: 13px; flex: 1; min-height: 0; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 28px); mask-image: linear-gradient(to bottom, transparent, #000 28px); }
+.feed .opts { display: flex; flex-wrap: wrap; gap: 6px; padding: 0; background: none; }
+.feed .opts span { border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; padding: 2px 9px; font-size: 12px; }
+.feed .opts span.hit { background: var(--accent); color: #0b1520; }
+.feed div { padding: 4px 9px; border-radius: 8px; max-width: 92%; animation: pop .25s ease-out; }
+.feed .you { align-self: flex-end; background: #233246; }
+.feed .ai { align-self: flex-start; background: var(--panel2); }
+.feed .ai.ok { color: var(--ok); }
+.feed .think { color: var(--dim); }
+.feed .think::after { content: "…"; animation: blink 1s infinite; }
+@keyframes pop { from { opacity: 0; transform: translateY(4px); } }
+@keyframes blink { 50% { opacity: .2; } }
+@media (prefers-reduced-motion: reduce) { .feed div { animation: none; } }
+@media (max-width: 520px) { .objs { width: 116px; } }
+.bd { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 24px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; margin: 34px 0 8px; }
+.bd h2 { margin: 0 0 8px; }
+.bd p, .bd li { color: var(--dim); font-size: 14px; }
+.bd li b { color: var(--text); }
+.bd .btn { margin-top: 8px; }
+.bddemo { display: grid; grid-template-columns: 158px minmax(0, 1fr); gap: 12px; align-items: center; background: #0d0e10; border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+.plist { font-size: 12px; }
+.prow { display: grid; grid-template-columns: 20px 1fr auto; gap: 5px; white-space: nowrap; font-size: 11.5px; align-items: center; padding: 3px 6px; border-left: 2px solid transparent; border-radius: 3px; }
+.prow .pn { color: var(--dim); font: 10px ui-monospace, Menlo, monospace; }
+.prow.sel { background: var(--panel2); border-left-color: var(--accent); }
+.pchip { font-size: 9px; border-radius: 9px; padding: 0 6px; border: 1px solid var(--line); color: var(--dim); }
+.pchip.draft { color: var(--sel); border-color: #6b5130; }
+.pchip.done { color: var(--ok); border-color: #3c6a48; }
+.bdpage { position: relative; }
+.bdpage canvas { width: 100%; height: auto; image-rendering: pixelated; display: block; border-radius: 4px; }
+.bdsel { position: absolute; border: 2px solid var(--accent); border-radius: 4px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .28); transition: left .35s, top .35s; pointer-events: none; }
+.bdcap { font-size: 11px; color: var(--dim); margin-top: 6px; }
+.bdcap span { color: var(--accent); }
+@media (max-width: 820px) { .bd { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .bddemo { grid-template-columns: 1fr; } .plist { display: grid; grid-template-columns: 1fr 1fr; } }
+.tag { display: inline-block; align-self: flex-start; font-size: 11px; font-weight: 600; border-radius: 999px; padding: 1px 9px; margin-bottom: 8px; }
+.grid .card span.tag { font-size: 11px; margin-top: 0; white-space: nowrap; }
+.grid .card span.tag.ag, .tag.ag { color: var(--accent); border: 1px solid #2f5677; background: #14222f; }
+.grid .card span.tag.hand, .tag.hand { color: var(--sel); border: 1px solid #6b5130; background: #2a2116; }
+footer { margin-top: 48px; color: var(--dim); font-size: 13px; border-top: 1px solid var(--line); padding-top: 14px; }
+a { color: var(--accent); }
+@media (max-width: 820px) {
+  .hero { grid-template-columns: 1fr; }
+  .screen canvas { width: 100%; height: auto; aspect-ratio: 2 / 1; }
+  .flow, .two { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section class="hero">
+    <div>
+      <h1>rmpUI</h1>
+      <p class="sub">Design the 1-bit screens of Rytm Sidecar plugins: animated knob graphics, whole pages, fonts. What you see here is pixel for pixel what the Rytm shows, and it exports as C for your plugin.</p>
+      <div class="cta">
+        <a class="btn primary" href="sketch.html">Sketch a knob</a>
+        <a class="btn" href="tutorials.html">Tutorials</a>
+      </div>
+    </div>
+    <div class="screen"><canvas id="demo" width="128" height="64"></canvas><div class="cap">a made-up plugin's two pages, drawn live by rmpui.js · click to switch</div></div>
+  </section>
+
+  <section class="bd">
+    <div class="bdtext">
+      <span class="tag ag">🤖 Best with an agent</span>
+      <h2>The plugin board: design the whole plugin at once</h2>
+      <p>Give it your plugin's <code>manifest.json</code>. Every parameter appears on its real Rytm page, in its real slot, with its label, so you judge the pages as a whole, not knob by knob.</p>
+      <p>It shines with an agent: it drafts every knob in several design languages at once, you compare them on the real pages, pick one and steer with notes while it refines. You can also fill it by hand, one sketch at a time.</p>
+      <ul>
+        <li><b>Every knob in one list</b>, each marked empty, draft or done, with its drawing and a slider.</li>
+        <li><b>The real pages</b>, drawn exactly as the Rytm will: sweep every knob at once to see the set move.</li>
+        <li><b>Design languages</b>: keep several looks for the same plugin and compare them side by side.</li>
+        <li><b>Export C</b> when it's done: one file for your plugin.</li>
+      </ul>
+      <a class="btn primary" href="board.html">Open the plugin board</a> <a class="btn" href="#run">Set up an agent</a>
+    </div>
+    <div class="bddemo" aria-label="A plugin board: the parameter list and the real page, one knob selected and turning">
+      <div class="plist" id="bdList"></div>
+      <div class="bdpage"><canvas id="bdCv" width="128" height="64"></canvas><div class="bdsel" id="bdSel"></div><div class="bdcap">MY VERB, page 2: <span id="bdNow"></span></div></div>
+    </div>
+  </section>
+
+  <h2>Pick a starting point</h2>
+  <div class="grid">
+    <a class="card" href="board.html"><span class="tag ag">🤖 Best with an agent</span><b>Design a whole plugin</b><span>Load a plugin's manifest.json and see every parameter on its real Rytm page. Your agent drafts design languages; you pick and steer.</span><span class="go">Plugin board →</span></a>
+    <a class="card" href="sketch.html"><span class="tag hand">✎ Best by hand</span><b>Draw a knob</b><span>Draw the knob at a few values (keys); rmpUI makes the frames in between. Made for drawing by hand; an agent can draw here too.</span><span class="go">Sketch editor →</span></a>
+    <a class="card" href="layout.html"><b>Lay out a page</b><span>Text, values, bars, dials, envelopes, waves and your sketches, each tied to a parameter, previewed with sliders.</span><span class="go">Layout preview →</span></a>
+    <a class="card" href="font.html"><b>Make a font</b><span>Proportional pixel fonts for names and numbers, with a check that your strings fit their box.</span><span class="go">Font editor →</span></a>
+    <a class="card" href="tutorials.html"><b>Learn by building</b><span>Four short step-by-step builds: a feedback ripple, an algorithm picker, a two-line ratio display, an X/Y mix bar.</span><span class="go">Tutorials →</span></a>
+  </div>
+
+  <h2>On the Rytm</h2>
+  <div class="flow">
+    <div><b>What you see is what it shows</b>The page here and your plugin on the Rytm draw with the same code, so every pixel matches.</div>
+    <div><b>One file for your plugin</b><b class="ui">Export C</b> on the board or a layout gives your plugin its screens in one file.</div>
+    <div><b>Or ask your agent</b>"Put these screens in my plugin." With the rmpUI skill it exports the file and wires it in.</div>
+  </div>
+  <p style="color:var(--dim)">Writing the plugin yourself? The <a href="https://github.com/twwwy/rmpui#put-it-on-the-rytm">README</a> has the three lines of C.</p>
+
+  <h2 id="run">Two ways to run it</h2>
+  <div class="two">
+    <div class="card run">
+      <div class="demo ed" aria-label="The feedback ripple: four keys you draw, and the frames rmpUI makes between them">
+        <div class="step1">
+          <div class="sl"><span class="n">1</span> You draw a few keys</div>
+          <div class="kthumbs" id="kThumbs"></div>
+        </div>
+        <div class="step2">
+          <div class="sl"><span class="n">2</span> rmpUI makes every frame between them</div>
+          <div class="edtop">
+            <canvas id="edCv" class="grid"></canvas>
+            <div class="objs" id="edObjs"></div>
+          </div>
+        </div>
+        <div class="tl">
+          <div class="tlbar" id="tlBar"><div class="ph" id="tlPh"></div></div>
+          <div class="tlcap"><span>the knob, 0 to 127</span><span>value <b id="edV">0</b></span></div>
+        </div>
+      </div>
+      <b>In the browser: draw by hand</b>
+      <p class="dim">Draw the knob at a few values, the <i>keys</i>. rmpUI fills in every frame between them, so turning the knob plays a smooth animation. This is the feedback ripple from the tutorials: four drawings, 32 frames. Nothing to install; your work stays in this browser.</p>
+    </div>
+    <div class="card run">
+      <div class="demo chat" aria-label="An illustration: an agent shows one plugin page in four design languages and you pick one">
+        <div class="cmp" id="cmp"></div>
+        <div class="feed" id="feed"></div>
+      </div>
+      <b>On your computer: design with an agent</b>
+      <p class="dim">Run rmpUI locally and a coding agent (Claude Code or another) designs with you on the plugin board: it lays out whole design languages side by side on your real pages, you pick one, then it polishes knob by knob while you watch, undo, answer and send notes from the 🤖 panel. <i>(An illustration.)</i></p>
+    </div>
+  </div>
+  <pre>git clone https://github.com/twwwy/rmpui.git && cd rmpui
+python3 serve.py                   # http://127.0.0.1:8004, this machine only
+# then give your agent the skill: skills/rmpui/SKILL.md (see the README)</pre>
+
+  <footer>
+    MIT licensed · <a href="https://github.com/twwwy/rmpui">source and README</a> · the built-in 3×5 and 5×7 fonts are the Sidecar firmware's (CC0)<br>
+    An independent tool for Sidecar plugin developers. Not affiliated with Elektron. Rytm is Elektron's trademark.
+  </footer>
+</div>
+<script type="module">
+import * as R from "./rmpui.js";
+import * as K from "./sketch.js";
+// the demo: one made-up plugin's two pages (tutorial-data/landing.json), every knob drifting on its own, the pages
+// taking turns; click the screen to switch now
+const cv = document.getElementById("demo"), g = cv.getContext("2d"), img = g.createImageData(128, 64);
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const L = (await (await fetch("tutorial-data/landing.json")).json()).layout, C = R.compile(L);
+const SW = new Set([7, 8]);   // the two switches flip now and then
+let page = 1, since = performance.now();
+cv.addEventListener("click", () => { page = 3 - page; since = performance.now(); if (reduce) frame(performance.now()); });
+cv.style.cursor = "pointer"; cv.title = "click: the other page";
+function frame(t) {
+  if (!reduce && t - since > 7000) { page = 3 - page; since = t; }
+  const p = Array.from({ length: 32 }, (_, i) => {
+    const k = i + 1, per = 2600 + ((k * 1931) % 3400), ph = k * 1.7;
+    if (SW.has(k)) return Math.sin(t / per + ph) > 0 ? 127 : 0;
+    return 63.5 + 63.5 * Math.sin((t / per) * 2 + ph);
+  });
+  const fb = R.render(L, page, p, C).fb;
+  for (let y = 0; y < 64; y++) for (let x = 0; x < 128; x++) {
+    const on = (fb[y * 16 + (x >> 3)] >> (7 - (x & 7))) & 1, k = (y * 128 + x) * 4;
+    img.data[k] = img.data[k + 1] = img.data[k + 2] = on ? 235 : 0; img.data[k + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  if (!reduce) requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+// the two small demos under "Two ways to run it"
+const DATA = await (await fetch("tutorial-data/landing.json")).json(), BM = DATA.layout.bitmaps;
+const bits = (b, f) => { const rb = (b.w + 7) >> 3, hex = b.frames[f], g = new Uint8Array(b.w * b.h);
+  for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) g[y * b.w + x] = (parseInt(hex.substr((y * rb + (x >> 3)) * 2, 2), 16) >> (7 - (x & 7))) & 1;
+  return g; };
+function paintG(c, g, w, h, s) {
+  if (c.width !== w * s) { c.width = w * s; c.height = h * s; }
+  const x2 = c.getContext("2d"); x2.fillStyle = "#000"; x2.fillRect(0, 0, c.width, c.height); x2.fillStyle = "#ebebeb";
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (g[y * w + x]) x2.fillRect(x * s, y * s, s, s);
+}
+function paintFb(c, fb) {
+  const x2 = c.getContext("2d"), im = x2.createImageData(128, 64);
+  for (let i = 0; i < 128 * 64; i++) { const on = (fb[(i >> 7) * 16 + ((i & 127) >> 3)] >> (7 - (i & 7))) & 1; im.data[i * 4] = im.data[i * 4 + 1] = im.data[i * 4 + 2] = on ? 235 : 0; im.data[i * 4 + 3] = 255; }
+  x2.putImageData(im, 0, 0);
+}
+const at = (b, v) => bits(b, Math.min(b.frames.length - 1, Math.floor((v * b.frames.length) / 128)));
+// 1. the feedback ripple (tutorial-fdbk): the keys you draw, and the frames rmpUI makes between them
+const SK = {"w":13,"h":13,"steps":32,"next":8,"objs":[{"id":1,"name":"frame TL","linked":true,"appear":"grow"},{"id":2,"name":"frame TR","linked":true,"appear":"grow"},{"id":3,"name":"frame BL","linked":true,"appear":"grow"},{"id":4,"name":"frame BR","linked":true,"appear":"grow"},{"id":5,"name":"ripple 1","linked":false,"appear":"grow"},{"id":6,"name":"ripple 2","linked":false,"appear":"grow"},{"id":7,"name":"ripple 3","linked":false,"appear":"grow"}],"keys":[{"v":0,"shapes":[{"kind":"line","a":[3,0],"b":[0,3],"id":1},{"kind":"line","a":[9,0],"b":[12,3],"id":2},{"kind":"line","a":[0,9],"b":[3,12],"id":3},{"kind":"line","a":[12,9],"b":[9,12],"id":4}]},{"v":63,"shapes":[{"kind":"line","a":[3,0],"b":[0,3],"id":1},{"kind":"line","a":[9,0],"b":[12,3],"id":2},{"kind":"line","a":[0,9],"b":[3,12],"id":3},{"kind":"line","a":[12,9],"b":[9,12],"id":4},{"kind":"poly","pts":[[5,0],[7,0],[12,5],[12,7],[7,12],[5,12],[0,7],[0,5]],"closed":true,"id":5}]},{"v":64,"shapes":[{"kind":"line","a":[3,0],"b":[0,3],"id":1},{"kind":"line","a":[9,0],"b":[12,3],"id":2},{"kind":"line","a":[0,9],"b":[3,12],"id":3},{"kind":"line","a":[12,9],"b":[9,12],"id":4},{"kind":"poly","pts":[[5,0],[7,0],[12,5],[12,7],[7,12],[5,12],[0,7],[0,5]],"closed":true,"id":5}]},{"v":99,"shapes":[{"kind":"line","a":[3,0],"b":[0,3],"id":1},{"kind":"line","a":[9,0],"b":[12,3],"id":2},{"kind":"line","a":[0,9],"b":[3,12],"id":3},{"kind":"line","a":[12,9],"b":[9,12],"id":4},{"kind":"poly","pts":[[5,0],[7,0],[12,5],[12,7],[7,12],[5,12],[0,7],[0,5]],"closed":true,"id":5},{"kind":"poly","pts":[[5,2],[7,2],[10,5],[10,7],[7,10],[5,10],[2,7],[2,5]],"closed":true,"id":6}]},{"v":108,"shapes":[{"kind":"line","a":[3,0],"b":[0,3],"id":1},{"kind":"line","a":[9,0],"b":[12,3],"id":2},{"kind":"line","a":[0,9],"b":[3,12],"id":3},{"kind":"line","a":[12,9],"b":[9,12],"id":4},{"kind":"poly","pts":[[5,0],[7,0],[12,5],[12,7],[7,12],[5,12],[0,7],[0,5]],"closed":true,"id":5},{"kind":"poly","pts":[[5,2],[7,2],[10,5],[10,7],[7,10],[5,10],[2,7],[2,5]],"closed":true,"id":6}]},{"v":127,"shapes":[{"kind":"line","a":[3,0],"b":[0,3],"id":1},{"kind":"line","a":[9,0],"b":[12,3],"id":2},{"kind":"line","a":[0,9],"b":[3,12],"id":3},{"kind":"line","a":[12,9],"b":[9,12],"id":4},{"kind":"poly","pts":[[5,0],[7,0],[12,5],[12,7],[7,12],[5,12],[0,7],[0,5]],"closed":true,"id":5},{"kind":"poly","pts":[[5,2],[7,2],[10,5],[10,7],[7,10],[5,10],[2,7],[2,5]],"closed":true,"id":6},{"kind":"poly","pts":[[5,4],[7,4],[8,5],[8,7],[7,8],[5,8],[4,7],[4,5]],"closed":true,"id":7}]}]};
+const edCv = document.getElementById("edCv"), Z = matchMedia("(max-width: 520px)").matches ? 9 : 11, tlBar = document.getElementById("tlBar");
+edCv.width = SK.w * Z; edCv.height = SK.h * Z;
+const SHOWN = [0, 63, 99, 127];   // 64 and 108 are the same pictures as 63 and 99, with the next ripple about to start
+const thumbs = SHOWN.map((v) => {
+  const f = document.createElement("figure"), c = document.createElement("canvas"), g = K.draw(K.shapesAt(SK, v), SK.w, SK.h);
+  const T = matchMedia("(max-width: 520px)").matches ? 4 : 5; c.width = SK.w * T; c.height = SK.h * T; const x2 = c.getContext("2d"); x2.fillStyle = "#000"; x2.fillRect(0, 0, c.width, c.height); x2.fillStyle = "#ebebeb";
+  for (let y = 0; y < SK.h; y++) for (let x = 0; x < SK.w; x++) if (g[y * SK.w + x]) x2.fillRect(x * T, y * T, T, T);
+  f.append(c, "key " + v); document.getElementById("kThumbs").append(f); return f;
+});
+const keyEls = SHOWN.map((v) => { const d = document.createElement("div"); d.className = "key"; d.style.left = (v / 127) * 100 + "%"; tlBar.append(d); return d; });
+const OBJS = [["frame", "fixed", () => "on"], ["ripple 1", "0 → 63", (v) => (v < 63 ? "grow" : "on")], ["ripple 2", "64 → 99", (v) => (v <= 64 ? "" : v < 99 ? "grow" : "on")], ["ripple 3", "108 → 127", (v) => (v <= 108 ? "" : v < 127 ? "grow" : "on")]];
+const objEls = OBJS.map(([n, when]) => { const d = document.createElement("div"); d.className = "orow"; d.innerHTML = `${n}<span>${when}</span>`; document.getElementById("edObjs").append(d); return d; });
+function editor(v) {
+  const g = K.draw(K.shapesAt(SK, Math.floor((Math.floor((v * SK.steps) / 128) * 127) / (SK.steps - 1))), SK.w, SK.h), x2 = edCv.getContext("2d");
+  x2.fillStyle = "#0d0e10"; x2.fillRect(0, 0, edCv.width, edCv.height);
+  for (let y = 0; y < SK.h; y++) for (let x = 0; x < SK.w; x++) { x2.fillStyle = g[y * SK.w + x] ? "#ebebeb" : "#1a1c20"; x2.fillRect(x * Z, y * Z, Z - 1, Z - 1); }
+  document.getElementById("tlPh").style.left = (v / 127) * 100 + "%";
+  document.getElementById("edV").textContent = Math.round(v);
+  keyEls.forEach((d, i) => d.classList.toggle("hit", Math.abs(SHOWN[i] - v) < 3));
+  thumbs.forEach((f, i) => f.classList.toggle("hit", Math.abs(SHOWN[i] - v) < 3));
+  objEls.forEach((d, i) => { d.className = "orow " + OBJS[i][2](v); });
+}
+// 2. the agent on the plugin board: the same page in four design languages, then you pick one
+const CMP = DATA.compare, CC = R.compile(CMP), LANGS = DATA.langs, grid = document.getElementById("cmp"), feed = document.getElementById("feed");
+const cells = LANGS.map((l) => {
+  const f = document.createElement("figure"), c = document.createElement("canvas"); c.width = 128; c.height = 64;
+  f.append(c, Object.assign(document.createElement("figcaption"), { textContent: l.name })); grid.append(f); return f;
+});
+const PICK = LANGS.length - 1;
+const SCRIPT = [
+  [0, "you", "12 knobs. Help me pick a look for the whole plugin"],
+  [1300, "think", "the agent is thinking"],
+  [2600, "ai", "Four looks, on your real pages. Which one?"],
+  [2700, "opts"],
+  [5600, "pick"],
+  [5800, "you", LANGS[PICK].name],
+  [6600, "ai ok", `✓ working set: ${LANGS[PICK].name}. Now each knob, one by one.`],
+  [11500, "end"],
+];
+let t0 = performance.now(), shown = 0;
+function chat(t) {
+  while (shown < SCRIPT.length && SCRIPT[shown][0] <= t - t0) {
+    const [, kind, text] = SCRIPT[shown++];
+    if (kind === "end") { t0 = t; shown = 0; feed.innerHTML = ""; cells.forEach((c) => c.classList.remove("dim", "on")); continue; }
+    if (kind === "pick") { feed.querySelectorAll(".opts span")[PICK]?.classList.add("hit"); cells.forEach((c, i) => c.classList.add(i === PICK ? "on" : "dim")); continue; }
+    feed.querySelectorAll(".think").forEach((n) => n.remove());
+    const d = document.createElement("div"); d.className = kind;
+    if (kind === "opts") d.innerHTML = LANGS.map((l) => `<span>${l.name}</span>`).join(""); else d.textContent = text;
+    feed.append(d);
+  }
+}
+function demos(t) {
+  const ph = (t / 8000) % 2;
+  editor(Math.round((ph < 1 ? ph : 2 - ph) * 127));
+  const p = Array.from({ length: 32 }, (_, i) => 63.5 + 63.5 * Math.sin(t / (1500 + i * 370) + i * 1.3));
+  cells.forEach((f, i) => paintFb(f.firstChild, R.render(CMP, i + 1, p, CC).fb));
+  if (reduce) return;
+  chat(t);
+  requestAnimationFrame(demos);
+}
+// 3. the board: the parameter list beside the real page; one knob at a time is selected and turns
+const BP = [["LOW", "Low damping", "done"], ["HIGH", "High damping", "done"], ["PRE", "Pre-delay", "done"], ["ECHO", "Echo feedback", "done"], ["DECAY", "Decay", "done"], ["DIFF", "Diffusion", "done"], ["RATE", "Mod rate", "draft"], ["DEPTH", "Mod depth", "draft"]];
+const bdRows = BP.map(([sh, long, st], i) => { const d = document.createElement("div"); d.className = "prow"; d.innerHTML = `<span class="pn">P${i + 1}</span><span>${long}</span><span class="pchip ${st}">${st}</span>`; document.getElementById("bdList").append(d); return d; });
+const bdCv = document.getElementById("bdCv"), bdSel = document.getElementById("bdSel"), SHARED_PG = LANGS.findIndex((l) => l.id === "shared") + 1;
+function board(t) {
+  const sel = Math.floor(t / 2200) % 8, ph = (t % 2200) / 2200, p = Array(32).fill(64);
+  p[sel] = (0.5 - 0.5 * Math.cos(ph * 2 * Math.PI)) * 127;
+  paintFb(bdCv, R.render(CMP, SHARED_PG, p, CC).fb);
+  bdRows.forEach((d, i) => d.classList.toggle("sel", i === sel));
+  const col = sel % 4, row = sel >> 2;
+  Object.assign(bdSel.style, { left: col * 25 + "%", width: "25%", top: ((row ? 38 : 10) / 64) * 100 + "%", height: (27 / 64) * 100 + "%" });
+  document.getElementById("bdNow").textContent = `P${sel + 1} ${BP[sel][0]} at ${Math.round(p[sel])}`;
+  if (!reduce) requestAnimationFrame(board);
+}
+requestAnimationFrame(board);
+if (reduce) { const d = document.createElement("div"); d.className = "ai"; d.textContent = "Four looks, on your real pages. Which one?"; feed.append(d); }
+requestAnimationFrame(demos);
+</script>
+</body>
+</html>

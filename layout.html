@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Layout Preview</title>
+<style>
+:root { --bg: #15171a; --panel: #1d2024; --panel2: #24282d; --line: #33383f; --text: #e6e8eb; --dim: #8b929b; --accent: #5fb3ff; --sel: #ffb35f; --ok: #8fdc9f; --bad: #ff7b7b; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+header { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+header h1 { font-size: 14px; margin: 0 10px 0 0; }
+.sp { flex: 1; }
+.btn { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 5px 10px; font: inherit; cursor: pointer; text-decoration: none; }
+.btn:hover { border-color: var(--accent); }
+.btn.on { border-color: var(--sel); color: var(--sel); }
+select, input[type=number] { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; font: inherit; }
+label { color: var(--dim); display: inline-flex; gap: 5px; align-items: center; }
+body { display: flex; flex-direction: column; height: 100vh; }
+main { display: grid; grid-template-columns: minmax(360px, 1fr) minmax(560px, 1.3fr); flex: 1; min-height: 0; }
+.l { border-right: 1px solid var(--line); display: flex; flex-direction: column; background: var(--panel); }
+textarea { flex: 1; margin: 0; border: 0; background: #0e1012; color: var(--text); padding: 12px; font: 12px/1.5 ui-monospace, Menlo, monospace; resize: none; outline: none; }
+.errs { padding: 8px 12px; font-size: 12px; border-top: 1px solid var(--line); max-height: 140px; overflow: auto; }
+.errs .bad { color: var(--bad); }
+.errs .ok { color: var(--ok); }
+.r { overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.tabs { display: flex; gap: 4px; }
+.screen { background: #000; padding: 8px; border-radius: 6px; box-shadow: inset 0 0 0 2px #111; }
+.screen canvas { display: block; image-rendering: pixelated; }
+.params { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 10px; align-items: center; width: 100%; max-width: 560px; }
+.params b { color: var(--sel); font-variant-numeric: tabular-nums; min-width: 70px; text-align: right; }
+.params input[type=range] { width: 100%; }
+.dim { color: var(--dim); font-size: 12px; }
+.btn.sm { padding: 3px 8px; font-size: 12px; }
+.refs { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 4px; }
+.refs h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); margin: 6px 0 2px; }
+.ref { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); }
+.ref img { width: 28px; height: 28px; object-fit: contain; background: #000; image-rendering: pixelated; }
+.ref .t { flex: 1; min-width: 0; }
+.ref .t span { color: var(--dim); font-size: 12px; }
+.ref.miss { border-color: #6a3a3a; }
+.ref .k { font-size: 11px; color: var(--dim); min-width: 34px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Layout preview <span style="color:var(--dim);font-weight:400;font-size:11px">v2</span></h1>
+  <label>Insert font <select id="fontIns"><option value="">…</option></select></label>
+  <button class="btn" id="fmt">Tidy JSON</button>
+  <button class="btn" id="embed" title="Copy every bitmap and font this layout takes from the library into its JSON, so the JSON works on its own (for the Rytm build, or to share)">Embed library items</button>
+  <button class="btn" id="expC" title="Download this layout as a C header for rmp_ui.c, with every bitmap and font it uses from the library">Export C</button>
+  <span class="sp"></span>
+  <a class="btn" href="font.html" target="rmpui-font">Font editor ↗</a>
+  <a class="btn" href="sketch.html" target="rmpui-sketch">Sketch editor ↗</a>
+</header>
+<main>
+  <section class="l">
+    <div id="libBar"></div>
+    <div class="dim" style="padding:6px 12px 4px">A <code>frames</code> element's <code>"bmp"</code> or a text's <code>"font"</code> that this JSON doesn't define comes from the library: the sketch exported under that name, the font of that name.</div>
+    <textarea id="src" spellcheck="false"></textarea>
+    <div class="errs" id="errs"></div>
+  </section>
+  <section class="r">
+    <div class="tabs" id="tabs"></div>
+    <div class="screen"><canvas id="scr"></canvas></div>
+    <div class="screen" style="padding:4px"><canvas id="scr1"></canvas></div>
+    <div class="dim">Drawn by rmpui.js, the same code as the Rytm. Params below are the ones this page uses.</div>
+    <div class="params" id="params"></div>
+    <div class="refs" id="refs"></div>
+  </section>
+</main>
+<script type="module">
+import * as R from "./rmpui.js";
+import * as LIB from "./lib.js";
+import { libUI, esc } from "./lib-ui.js";
+const $ = (id) => document.getElementById(id);
+// STORE: the open layout's text (a tutorial can hand one over here, naming it in FROMK); CURK: its library id
+const STORE = "rmpui-layout-current", FONTS = "rmpui-fonts", CURK = "rmpui-layout-cur", FROMK = "rmpui-layout-from";
+const TOP14 = 127 * 128;
+// JSON with lists of strings (glyph rows, list items) kept on one line
+const pretty = (o) => JSON.stringify(o, null, 2).replace(/\[\n\s+("[^\n]*",?\n\s+)+"[^\n]*"\n\s+\]/g, (m) => "[" + m.slice(1, -1).trim().split(/,\n\s+/).join(", ") + "]");
+let page = 1, P = new Array(32).fill(0), layout = null, full = null, refs = [], curId = null, saveTm = 0, lastFb = null;
+const sample = { format: "rmpui-1", name: "my_ui", fonts: {}, bitmaps: {}, pages: { 1: [
+  { type: "text", x: 2, y: 2, text: "HELLO", font: 1 },
+  { type: "value", x: 2, y: 14, p: 1, align: "left" },
+  { type: "dial", x: 40, y: 10, w: 21, p: 1, ring: true },
+] } };
+function getSrc() { try { return localStorage.getItem(STORE) || pretty(sample); } catch (e) { return pretty(sample); } }
+function persist() { try { localStorage.setItem(STORE, $("src").value); } catch (e) {} scheduleSave(); }
+function parse() {
+  try { layout = JSON.parse($("src").value); return null; } catch (e) { layout = null; return e.message; }
+}
+
+// ---------- names the JSON doesn't define, from the library: a sketch's exported bitmap (by its export name), a font
+let libBmp = new Map(), libFont = new Map();   // name -> { id, asset (name), data, thumb, more (other assets with it) }
+async function loadLib() {
+  try {
+    const [sk, ft] = await Promise.all([LIB.list("sketch", true), LIB.list("font", true)]);   // newest first: the newest wins a name
+    libBmp = new Map(); libFont = new Map();
+    for (const a of sk) for (const [k, b] of Object.entries(a.data?.bitmap || {})) {
+      if (libBmp.has(k)) libBmp.get(k).more.push(a.name); else libBmp.set(k, { id: a.id, asset: a.name, data: b, thumb: a.thumb, more: [] });
+    }
+    for (const a of ft) if (a.data?.glyphs) { if (libFont.has(a.name)) libFont.get(a.name).more.push(a.name); else libFont.set(a.name, { id: a.id, asset: a.name, data: a.data, more: [] }); }
+  } catch (e) {}
+  draw();
+}
+const fontName = (f) => typeof f === "string" && f !== "" && isNaN(Number(f));
+// the layout as the Rytm would get it once the library items are embedded, and what came from where
+function resolve(L) {
+  const out = { ...L, bitmaps: { ...(L.bitmaps || {}) }, fonts: { ...(L.fonts || {}) } }, seen = new Map();
+  const note = (kind, name, el, pg) => { const k = kind + ":" + name; if (!seen.has(k)) seen.set(k, { kind, name, pages: new Set(), el }); seen.get(k).pages.add(pg); };
+  for (const [pg, els] of Object.entries(L.pages || {})) for (const el of els || []) {
+    if (el.type === "frames" && el.bmp) note("bmp", String(el.bmp), el, pg);
+    if (fontName(el.font)) note("font", el.font, el, pg);
+  }
+  const list = [];
+  for (const r of seen.values()) {
+    const inl = r.kind === "bmp" ? L.bitmaps?.[r.name] : L.fonts?.[r.name], lib = (r.kind === "bmp" ? libBmp : libFont).get(r.name);
+    if (inl) list.push({ ...r, from: "inline", lib });
+    else if (lib) { (r.kind === "bmp" ? out.bitmaps : out.fonts)[r.name] = lib.data; list.push({ ...r, from: "lib", lib }); }
+    else list.push({ ...r, from: "none" });
+  }
+  return { L: out, list };
+}
+// where a new sketch for a frames element goes: the knob slot under its x, y (tall top row), and that slot's size
+function slotFor(el) {
+  const x = el.x | 0, y = el.y | 0, row = y >= 40 ? 1 : 0, slot = row * 4 + Math.max(0, Math.min(3, Math.floor((x + 4) / 32)));
+  return { slot, w: 28, h: row ? 11 : 21 };
+}
+function renderRefs() {
+  const box = $("refs");
+  if (!refs.length) { box.innerHTML = ""; return; }
+  const row = (r) => {
+    const kind = r.kind === "bmp" ? "bitmap" : "font", pgs = `page ${[...r.pages].join(", ")}`;
+    let txt, btns = "";
+    if (r.from === "lib") {
+      txt = `<b>${esc(r.name)}</b> <span>← library ${r.kind === "bmp" ? "sketch" : "font"} “${esc(r.lib.asset)}” · ${pgs}${r.lib.more.length ? ` · also exported by ${esc(r.lib.more.join(", "))} (the newest wins)` : ""}</span>`;
+      btns = `<button class="btn sm" data-edit="${r.kind}:${r.lib.id}:${esc(r.name)}">Edit ↗</button>`;
+    } else if (r.from === "inline") {
+      txt = `<b>${esc(r.name)}</b> <span>in this JSON · ${pgs}${r.lib ? ` · the library has one too (“${esc(r.lib.asset)}”)` : ""}</span>`;
+      if (r.lib) btns = `<button class="btn sm" data-unembed="${r.kind}:${esc(r.name)}" title="Delete the copy in this JSON, so the library's (and any later edit of it) is used">Use library's</button>`;
+    } else {
+      txt = `<b>${esc(r.name)}</b> <span>not in this JSON or the library · ${pgs}</span>`;
+      btns = `<button class="btn sm" data-make="${r.kind}:${esc(r.name)}">Make ${r.kind === "bmp" ? "sketch" : "font"} ↗</button>`;
+    }
+    const th = r.from === "lib" && r.lib.thumb ? `<img src="${r.lib.thumb}" alt="">` : "";
+    return `<div class="ref ${r.from === "none" ? "miss" : ""}" data-key="${r.kind}:${esc(r.name)}"><span class="k">${kind}</span>${th}<span class="t">${txt}</span>${btns}</div>`;
+  };
+  box.innerHTML = `<h3>Bitmaps and fonts by name</h3>` + refs.map(row).join("");
+  box.querySelectorAll("[data-edit]").forEach((b) => (b.onclick = () => {
+    const [k, id] = b.dataset.edit.split(":");
+    if (k === "bmp") window.open(`sketch.html#open=${id}`, "rmpui-sketch"); else window.open(`font.html#open=${encodeURIComponent(b.dataset.edit.split(":").slice(2).join(":"))}`, "rmpui-font");
+  }));
+  box.querySelectorAll("[data-make]").forEach((b) => (b.onclick = () => {
+    const [k, ...n] = b.dataset.make.split(":"), name = n.join(":"), r = refs.find((x) => x.kind === k && x.name === name);
+    if (k === "bmp") { const s = slotFor(r.el); window.open(`sketch.html#new=${encodeURIComponent(name)}&w=${s.w}&h=${s.h}&slot=${s.slot}`, "rmpui-sketch"); }
+    else window.open(`font.html#new=${encodeURIComponent(name)}`, "rmpui-font");
+  }));
+  box.querySelectorAll("[data-unembed]").forEach((b) => (b.onclick = () => {
+    const [k, ...n] = b.dataset.unembed.split(":"), name = n.join(":");
+    if (parse()) return;
+    delete layout[k === "bmp" ? "bitmaps" : "fonts"][name];
+    $("src").value = pretty(layout); persist(); draw();
+  }));
+}
+$("expC").onclick = () => {
+  if (parse()) return;
+  const { L } = resolve(layout), id = (String(layout.name || "layout").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "layout").replace(/^(\d)/, "_$1");
+  const errs = R.validate(L);
+  if (errs.length && !confirm(`The layout has problems:\n${errs.slice(0, 6).join("\n")}\n\nExport anyway?`)) return;
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([R.toC(L, id + "_ui")], { type: "text/x-c" }));
+  a.download = `${id}_ui.h`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  $("errs").insertAdjacentHTML("afterbegin", `<div class="ok">Downloaded ${esc(id)}_ui.h: <code>rmpui_draw(&amp;${esc(id)}_ui, page, p, fb)</code> draws it (rmp_ui.c).</div>`);
+};
+$("embed").onclick = () => {
+  if (parse()) return;
+  const got = refs.filter((r) => r.from === "lib");
+  if (!got.length) { $("errs").insertAdjacentHTML("afterbegin", `<div class="dim">Nothing to embed: everything is already in the JSON.</div>`); return; }
+  for (const r of got) { const k = r.kind === "bmp" ? "bitmaps" : "fonts"; layout[k] = { ...(layout[k] || {}), [r.name]: r.lib.data }; }
+  $("src").value = pretty(layout); persist(); draw();
+  $("errs").insertAdjacentHTML("afterbegin", `<div class="ok">Embedded ${got.map((r) => esc(r.name)).join(", ")}: the JSON now works on its own (and no longer follows the library for them; “Use library's” undoes it).</div>`);
+};
+
+// the params a page uses, and any detents an element gives a param
+function used() {
+  const m = new Map();
+  for (const el of (layout?.pages?.[page]) || []) for (const k of [el.p, el.if?.p, el.a, el.d, el.s, el.r]) if (k >= 1 && k <= 32 && !m.has(k)) m.set(k, 0);
+  for (const el of (layout?.pages?.[page]) || []) if (el.p >= 1 && el.index?.detents > 1) m.set(el.p, el.index.detents);
+  return [...m.entries()].sort((a, b) => a[0] - b[0]);
+}
+function renderParams() {
+  const box = $("params"); box.innerHTML = "";
+  for (const [k, det] of used()) {
+    const lab = document.createElement("span"); lab.textContent = `P${k}`;
+    const r = Object.assign(document.createElement("input"), { type: "range", min: 0, max: det > 1 ? det - 1 : 127, step: 1 });
+    const v = document.createElement("b");
+    const fromP = () => (det > 1 ? Math.round((Math.round(P[k - 1] * 128) * (det - 1)) / TOP14) : Math.round(P[k - 1]));
+    r.value = fromP();
+    const show = () => { v.textContent = det > 1 ? `detent ${r.value}` : String(Math.round(P[k - 1])); };
+    r.oninput = () => {   // a detent's exact value, as Sidecar sends it: (q * 127.0 + half) / (N - 1), in 1/128 steps
+      P[k - 1] = det > 1 ? Math.trunc((r.value * TOP14 + ((det - 1) >> 1)) / (det - 1)) / 128 : +r.value;
+      show(); draw();
+    };
+    show();
+    box.append(lab, r, v);
+  }
+  if (!box.children.length) box.innerHTML = `<span class="dim" style="grid-column:1/-1">This page uses no params.</span>`;
+}
+function draw() {
+  const e = $("errs"), err = parse();
+  if (err) { e.innerHTML = `<div class="bad">JSON: ${err}</div>`; return; }
+  ({ L: full, list: refs } = resolve(layout));
+  renderRefs();
+  const v = R.validate(full), fromLib = refs.filter((r) => r.from === "lib").length;
+  e.innerHTML = v.length ? v.map((x) => `<div class="bad">${x.replace(/</g, "&lt;")}</div>`).join("") : `<div class="ok">OK · ${R.cost(full).elements} elements${fromLib ? ` · ${fromLib} from the library` : ""}</div>`;
+  let fb;
+  try { fb = R.render(full, page, P).fb; } catch (x) { e.innerHTML += `<div class="bad">render: ${x.message}</div>`; return; }
+  lastFb = page === 1 ? fb : lastFb;
+  for (const [c, s] of [[$("scr"), 4], [$("scr1"), 1]]) {
+    c.width = 128 * s; c.height = 64 * s;
+    const x = c.getContext("2d"); x.fillStyle = "#000"; x.fillRect(0, 0, c.width, c.height); x.fillStyle = "#e9f2ff";
+    for (let j = 0; j < 64; j++) for (let i = 0; i < 128; i++) if (fb[j * 16 + (i >> 3)] & (0x80 >> (i & 7))) x.fillRect(i * s, j * s, s - (s > 3 ? 1 : 0), s - (s > 3 ? 1 : 0));
+  }
+}
+function renderTabs() {
+  $("tabs").innerHTML = ["SRC", "SMPL", "SRC ▾", "SMPL ▾"].map((n, i) => `<button class="btn ${page === i + 1 ? "on" : ""}" data-p="${i + 1}">${n} <span class="dim">p${i + 1}</span></button>`).join("");
+  document.querySelectorAll("[data-p]").forEach((b) => (b.onclick = () => { page = +b.dataset.p; renderTabs(); renderParams(); draw(); }));
+}
+// "Insert font" copies a font into the JSON (fonts named in an element come from the library without it)
+async function fontList() {
+  const fonts = {};
+  try { for (const a of await LIB.list("font", true)) if (!(a.name in fonts)) fonts[a.name] = a.data; } catch (e) {}
+  try { for (const [n, f] of Object.entries(JSON.parse(localStorage.getItem(FONTS) || "{}").fonts || {})) if (!(n in fonts)) fonts[n] = f; } catch (e) {}
+  $("fontIns").innerHTML = `<option value="">…</option>` + Object.keys(fonts).map((n) => `<option>${esc(n)}</option>`).join("");
+  return fonts;
+}
+$("fontIns").onfocus = fontList;
+$("fontIns").onchange = async () => {
+  const n = $("fontIns").value, fonts = await fontList(); $("fontIns").value = "";
+  if (!n || parse()) return;
+  layout.fonts = { ...(layout.fonts || {}), [n]: fonts[n] };
+  $("src").value = pretty(layout); persist(); draw();
+};
+$("fmt").onclick = () => { if (!parse()) { $("src").value = pretty(layout); persist(); } };
+let tm = 0;
+$("src").oninput = () => { clearTimeout(tm); tm = setTimeout(() => { persist(); draw(); renderParams(); }, 250); };
+
+// ---------- the library: each layout is an asset { data: { src } }, its thumb page 1
+function thumb() {
+  let fb = lastFb; if (!fb && !parse()) try { fb = R.render(resolve(layout).L, 1, P).fb; } catch (e) {}
+  const g = new Uint8Array(128 * 64); if (fb) for (let j = 0; j < 64; j++) for (let i = 0; i < 128; i++) g[j * 128 + i] = (fb[j * 16 + (i >> 3)] >> (7 - (i & 7))) & 1;
+  return LIB.thumbOf(g, 128, 64, 128);
+}
+let pending = false, savedAt = 0;
+function scheduleSave() { if (!curId) return; clearTimeout(saveTm); pending = true; ui?.saving(); saveTm = setTimeout(save, 400); }
+async function save() {
+  clearTimeout(saveTm); if (!curId) return;
+  const id = curId, src = $("src").value, th = thumb(); pending = false;
+  try { const a = (await LIB.get(id)) || { id, type: "layout", name: "layout" }; savedAt = (await LIB.put({ ...a, data: { src }, thumb: th })).updated; ui.refresh(); }
+  catch (e) { ui.failed(e.message); }
+}
+function useLayout(id, src) {
+  curId = id; savedAt = 0; $("src").value = src;
+  try { localStorage.setItem(STORE, src); localStorage.setItem(CURK, id); } catch (e) {}
+  page = 1; lastFb = null; renderTabs(); draw(); renderParams();
+}
+async function open(id) { if (id === curId) return; if (curId) await save(); const a = await LIB.get(id); if (a) useLayout(a.id, a.data?.src || pretty(sample)); }
+async function create(src, name) {
+  if (curId) await save();
+  const id = LIB.newId(); name = await LIB.freeName("layout", name || "layout");
+  useLayout(id, src || pretty({ ...sample, pages: { 1: [] } }));
+  await LIB.put({ id, type: "layout", name, tags: [], data: { src: $("src").value }, thumb: thumb() });
+  ui.refresh();
+}
+const ui = libUI({ type: "layout", noun: "layout", bar: $("libBar"), current: () => curId, open, save,
+  reload: async (id) => { clearTimeout(saveTm); curId = null; await open(id); },
+  create: () => create(null, "layout"), duplicate: (a) => create(a.data?.src, a.name + " copy") });
+// a tutorial's layout: STORE holds it, FROMK names it; it becomes a new library layout
+async function incoming() {
+  let from = null; try { from = JSON.parse(localStorage.getItem(FROMK) || "null"); localStorage.removeItem(FROMK); } catch (e) {}
+  if (!from) return false;
+  await create(getSrc(), from.name || "tutorial layout"); return true;
+}
+async function start() {
+  $("src").value = getSrc(); renderTabs(); draw(); renderParams();
+  try {
+    if (!(await LIB.list("layout")).length) { const id = LIB.newId(); await LIB.put({ id, type: "layout", name: "my layout", tags: [], data: { src: getSrc() }, thumb: thumb() }); curId = id; try { localStorage.setItem(CURK, id); } catch (e) {} }
+    if (!(await incoming())) {
+      let id = null; try { id = localStorage.getItem(CURK); } catch (e) {}
+      const all = await LIB.list("layout"), a = await LIB.get(all.some((x) => x.id === id) ? id : all[0].id);
+      const last = getSrc();
+      useLayout(a.id, a.id === id && last !== a.data?.src ? last : a.data?.src);   // edits the library didn't get before the page closed
+      if (last !== a.data?.src && a.id === id) scheduleSave();
+    }
+    ui.refresh();
+  } catch (e) { $("errs").insertAdjacentHTML("afterbegin", `<div class="bad">the library isn't available here (${esc(e.message)}): this layout is kept the old way</div>`); }
+  await loadLib();
+}
+addEventListener("storage", (e) => {
+  // a tutorial's hand-off (FROMK set), or this same layout edited in another tab (then the last save wins)
+  if (e.key === STORE && e.newValue != null && e.newValue !== $("src").value) incoming().then((made) => {
+    let same = false; try { same = localStorage.getItem(CURK) === curId; } catch (x) {}
+    if (!made && same) { $("src").value = getSrc(); draw(); renderParams(); }
+  });
+  if (e.key === FONTS) fontList();
+});
+LIB.onChange(async (m) => {
+  if (m.type === "sketch" || m.type === "font") loadLib();
+  // the open layout changed elsewhere (another tab, an import): follow it, unless there are edits here not saved yet
+  if (m.type === "layout" && m.op === "put" && m.id === curId && !pending) {
+    const a = await LIB.get(curId);
+    if (a && a.updated > savedAt && a.data?.src != null && a.data.src !== $("src").value) { savedAt = a.updated; $("src").value = a.data.src; try { localStorage.setItem(STORE, a.data.src); } catch (e) {} draw(); renderParams(); }
+  }
+});
+addEventListener("pagehide", () => { if (curId) save(); });
+document.addEventListener("visibilitychange", () => { if (document.hidden && curId) save(); });
+start(); fontList();
+</script>
+</body>
+</html>

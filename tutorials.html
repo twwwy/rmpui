@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sketch Tutorials</title>
+<link rel="stylesheet" href="tutorial.css">
+<style>
+.list { display: grid; gap: 12px; margin-top: 18px; }
+.tut { display: block; text-decoration: none; color: inherit; }
+.tut:hover { border-color: var(--accent); }
+.tut h3 { margin: 0 0 4px; color: var(--text); text-transform: none; letter-spacing: 0; font-size: 17px; }
+.tut p { margin: 0; color: var(--dim); font-size: 14px; }
+.tut .meta { margin-top: 6px; font-size: 12px; color: var(--dim); display: flex; gap: 12px; align-items: center; }
+.tut .meta .bar { width: 120px; height: 5px; background: var(--panel2); border-radius: 3px; overflow: hidden; }
+.tut .meta .bar i { display: block; height: 100%; background: var(--ok); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Sketch tutorials</h1>
+  <p class="sub">Step-by-step builds in the <a href="sketch.html" target="rmpui-sketch" style="color:var(--accent)">sketch editor</a>, the <a href="font.html" target="rmpui-font" style="color:var(--accent)">font editor</a> and the <a href="layout.html" target="rmpui-layout" style="color:var(--accent)">layout preview</a>. Your progress is kept in this browser. In the editor, <b>📖 Guide</b> opens these beside the canvas, so you can follow along while you draw.</p>
+  <div class="list" id="list"></div>
+</div>
+<script type="module">
+const items = [
+  { id: "fdbk", href: "tutorial-fdbk.html", title: "A feedback ripple", steps: 7, text: "Rings ripple out from the centre inside a fixed frame. Linked objects, shapes that grow from nothing, Poly by clicking corners, copy / paste between keys." },
+  { id: "algo", href: "tutorial-algo.html", title: "An algorithm picker", steps: 6, text: "A list control: 8 operator diagrams and a big number, one exact picture each. Frames = items, white-outs, the Pencil, multi-select with group copy / paste and arrow-key nudging." },
+  { id: "ratio", href: "tutorial-ratio.html", title: "Text with your own font (RATIO B)", steps: 7, text: "Draw a digit font, then two lines of text that one 361-detent knob drives. The font editor, the layout preview, value lists with detents / div / mod. Letters work the same." },
+  { id: "mix", href: "tutorial-mix.html", title: "An X/Y mix bar", steps: 9, text: "A two-way bar: the fill grows toward X or Y from the centre. Rectangles corner to corner, single pixels, fills, unlinking, key timing, and frames versus memory." },
+];
+const box = document.getElementById("list");
+for (const t of items) {
+  let done = 0;
+  try { const p = JSON.parse(localStorage.getItem(`rmpui-tut-${t.id}`) || "{}"); done = Object.values(p.done || {}).filter(Boolean).length; } catch (e) {}
+  const a = document.createElement("a"); a.className = "card tut"; a.href = t.href + (window.parent !== window ? "?embed" : "");
+  a.innerHTML = `<div><h3>${t.title}</h3><p>${t.text}</p><div class="meta"><span class="bar"><i style="width:${(100 * done) / t.steps}%"></i></span>${done} of ${t.steps} steps done</div></div>`;
+  box.append(a);
+}
+</script>
+</body>
+</html>

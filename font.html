@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Font Editor</title>
+<style>
+:root { --bg: #15171a; --panel: #1d2024; --panel2: #24282d; --line: #33383f; --text: #e6e8eb; --dim: #8b929b; --accent: #5fb3ff; --sel: #ffb35f; --ok: #8fdc9f; --bad: #ff7b7b; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+header { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+header h1 { font-size: 14px; margin: 0 10px 0 0; }
+.sp { flex: 1; }
+.btn { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 5px 10px; font: inherit; cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: #0b1520; border-color: var(--accent); font-weight: 600; }
+.btn.sm { padding: 3px 8px; font-size: 12px; }
+input[type=number], input.txt, select, textarea { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; font: inherit; }
+input[type=number] { width: 52px; }
+label { color: var(--dim); display: inline-flex; gap: 5px; align-items: center; }
+main { display: grid; grid-template-columns: 330px 1fr 340px; height: calc(100vh - 48px); }
+aside { background: var(--panel); overflow: auto; padding: 0 0 14px; }
+aside.l { border-right: 1px solid var(--line); }
+aside.r { border-left: 1px solid var(--line); }
+h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); margin: 14px 12px 6px; }
+.row { display: flex; gap: 8px; align-items: center; padding: 0 12px; flex-wrap: wrap; margin-bottom: 6px; }
+.map { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; padding: 0 12px; }
+.map button { background: var(--panel2); border: 1px solid var(--line); border-radius: 4px; height: 38px; padding: 2px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: space-between; color: var(--dim); font: 10px ui-monospace, Menlo, monospace; }
+.map button.has { color: var(--text); }
+.map button.on { border-color: var(--sel); background: #2b241b; }
+.map canvas { image-rendering: pixelated; }
+.center { overflow: auto; display: flex; flex-direction: column; align-items: center; padding: 16px; gap: 10px; }
+#cv { cursor: crosshair; touch-action: none; border-radius: 3px; }
+.big { font: 600 28px ui-monospace, Menlo, monospace; color: var(--sel); }
+.status { color: var(--dim); min-height: 18px; text-align: center; }
+.status b { color: var(--sel); }
+.pv { padding: 0 12px; }
+.pv canvas { background: #000; image-rendering: pixelated; display: block; margin: 4px 0 8px; max-width: 100%; }
+textarea { width: calc(100% - 24px); margin: 0 12px; font: 12px ui-monospace, Menlo, monospace; }
+.checks { padding: 0 12px; font: 12px ui-monospace, Menlo, monospace; }
+.checks div { display: flex; gap: 8px; padding: 1px 0; }
+.checks .w { width: 44px; text-align: right; color: var(--dim); }
+.checks .bad { color: var(--bad); }
+.checks .ok { color: var(--ok); }
+kbd { background: var(--panel2); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; font-size: 10px; color: var(--dim); }
+.note { margin: 8px 12px; padding: 8px 10px; border-radius: 6px; background: var(--panel2); color: var(--dim); font-size: 12px; }
+.note b { color: var(--text); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Font editor <span style="color:var(--dim);font-weight:400;font-size:11px">v1</span></h1>
+  <label>Font <select id="fontSel"></select></label>
+  <button class="btn" id="newFont">New font…</button>
+  <button class="btn" id="dupFont">Duplicate</button>
+  <button class="btn" id="renFont">Rename…</button>
+  <button class="btn" id="delFont">Delete</button>
+  <span class="sp"></span>
+  <button class="btn" id="undo">Undo</button>
+  <label class="btn" style="color:var(--text)">Import <input type="file" id="imp" accept=".json" hidden></label>
+  <button class="btn" id="save">Save file</button>
+  <a class="btn" href="layout.html" target="rmpui-layout" style="text-decoration:none">Layout preview ↗</a>
+</header>
+<main>
+  <aside class="l">
+    <h2>Font</h2>
+    <div class="row"><label>Height <input type="number" id="height" min="1" max="32"></label><label title="Pixels between two glyphs">Spacing <input type="number" id="spacing" min="0" max="8"></label><label title="Width of a space (when there's no ' ' glyph) and of any character the font lacks">Space <input type="number" id="space" min="0" max="16"></label></div>
+    <div class="row"><label>Start from <select id="starter"><option value="">…</option><option value="F3">Sidecar 3×5 (A–Z 0–9)</option><option value="F5">Sidecar 5×7 (A–Z 0–9)</option></select></label><label><input type="checkbox" id="trim" checked> trim to proportional</label></div>
+    <h2>Characters <span id="count" style="text-transform:none;letter-spacing:0"></span></h2>
+    <div class="map" id="map"></div>
+    <div class="note">Click a character to edit it, or just <b>type it</b> (outside a text box). A glyph is as wide as you make it, so the font is proportional. A missing letter is drawn from the other case, if you've drawn that.</div>
+  </aside>
+  <section class="center">
+    <div class="big" id="cur"></div>
+    <div class="row" style="justify-content:center">
+      <span style="color:var(--dim)">Width</span>
+      <button class="btn sm" id="wMinus" title="Remove the right column (Shift: the left)">−</button><b id="wVal"></b><button class="btn sm" id="wPlus" title="Add a column on the right (Shift: on the left)">+</button>
+      <span style="width:12px"></span>
+      <button class="btn sm" data-shift="-1,0" title="Move left">←</button><button class="btn sm" data-shift="1,0" title="Move right">→</button><button class="btn sm" data-shift="0,-1" title="Move up">↑</button><button class="btn sm" data-shift="0,1" title="Move down">↓</button>
+      <button class="btn sm" id="gCopy">Copy</button><button class="btn sm" id="gPaste">Paste</button><button class="btn sm" id="gClear">Clear</button><button class="btn sm" id="gDel">Delete glyph</button>
+    </div>
+    <canvas id="cv"></canvas>
+    <div class="status" id="status">Click or drag to paint; starting on a lit pixel erases instead.</div>
+  </section>
+  <aside class="r">
+    <h2>Preview</h2>
+    <div class="pv"><input class="txt" id="sample" style="width:100%"><canvas id="pv4"></canvas><canvas id="pv1"></canvas><span id="pvw" style="color:var(--dim)"></span></div>
+    <h2>Strings to check</h2>
+    <div class="row"><label title="Flag strings wider than this">Fit in <input type="number" id="fitW" min="0" max="128" value="0"> px</label><span style="color:var(--dim);font-size:12px">0 = no limit</span></div>
+    <textarea id="strs" rows="6" placeholder="one per line"></textarea>
+    <div class="checks" id="checks"></div>
+    <h2>Use it</h2>
+    <div class="row"><button class="btn primary sm" id="copyJson">Copy font JSON</button></div>
+    <div class="note">In a layout, put it under <code>"fonts": { "name": … }</code> and give a <code>text</code> / <code>value</code> element <code>"font": "name"</code>. <b>Layout preview</b> can insert it for you.</div>
+  </aside>
+</main>
+<script type="module">
+import * as R from "./rmpui.js";
+import * as LIB from "./lib.js";
+const $ = (id) => document.getElementById(id);
+const STORE = "rmpui-fonts";
+const CHARS = Array.from({ length: 95 }, (_, i) => String.fromCharCode(32 + i));
+let DB, cur = "A", hist = [], clip = null, paint = null, Z = 28;
+const blank = (name) => ({ format: "rmpui-font-1", name, height: 7, spacing: 1, space: 3, glyphs: {} });
+function load() {
+  try { const t = localStorage.getItem(STORE); if (t) { const d = JSON.parse(t); if (d.fonts && Object.keys(d.fonts).length) return d; } } catch (e) {}
+  return { current: "my font", fonts: { "my font": blank("my font") } };
+}
+function persist() { try { localStorage.setItem(STORE, JSON.stringify(DB)); } catch (e) {} clearTimeout(syncTm); syncTm = setTimeout(sync, 400); }
+// ---------- the library: every font is mirrored there as a "font" asset (DB.ids: name -> asset id), so layouts can
+// use it by name; fonts in the library this page doesn't have yet (another browser tab, an import) are added here.
+let syncTm = 0;
+function fontThumb(f) {
+  const txt = "Aa 09", h = Math.max(1, f.height | 0), cols = [];
+  for (const ch of txt) {
+    const g = f.glyphs?.[ch]; if (ch === " " || !g) { for (let i = 0; i < (f.space ?? 3); i++) cols.push(null); continue; }
+    const w = Math.max(0, ...g.map((r) => r.length)); for (let i = 0; i < w; i++) cols.push(g.map((r) => r[i] === "#")); for (let i = 0; i < (f.spacing ?? 1); i++) cols.push(null);
+  }
+  const W = Math.max(1, Math.min(128, cols.length + 2)), H = Math.min(64, h + 2), g = new Uint8Array(W * H);
+  cols.slice(0, W - 2).forEach((c, i) => c && c.forEach((on, j) => { if (on && j < H - 2) g[(j + 1) * W + i + 1] = 1; }));
+  return LIB.thumbOf(g, W, H, 96);
+}
+async function sync() {
+  try {
+    const lib = await LIB.list("font", true), byId = new Map(lib.map((a) => [a.id, a])); let pulled = 0;
+    DB.ids = DB.ids || {};
+    for (const [n, f] of Object.entries(DB.fonts)) {
+      let id = DB.ids[n];
+      if (!id) { id = lib.find((a) => a.name === n)?.id || LIB.newId(); DB.ids[n] = id; }
+      const a = byId.get(id); DB.seen = DB.seen || {};
+      if (a && JSON.stringify(a.data) !== JSON.stringify(f) && a.updated > (DB.seen[id] || 0) && DB.seen[id]) {   // changed in the library since: take it
+        delete DB.fonts[n]; delete DB.ids[n]; DB.fonts[a.name] = a.data; DB.ids[a.name] = id; if (DB.current === n) DB.current = a.name; DB.seen[id] = a.updated; pulled++; continue;
+      }
+      if (!a || a.name !== n || JSON.stringify(a.data) !== JSON.stringify(f)) DB.seen[id] = (await LIB.put({ ...(a || { id, type: "font", tags: [] }), name: n, data: f, thumb: fontThumb(f) })).updated;
+      else DB.seen[id] = a.updated;
+    }
+    const mine = new Set(Object.values(DB.ids)); let added = 0;
+    for (const a of lib) if (!mine.has(a.id) && a.data?.glyphs && !(a.name in DB.fonts)) { DB.fonts[a.name] = a.data; DB.ids[a.name] = a.id; added++; }
+    try { localStorage.setItem(STORE, JSON.stringify(DB)); } catch (e) {}
+    if (added || pulled) renderAll();
+  } catch (e) {}
+}
+LIB.onChange((m) => { if (m.type === "font" && m.op === "put") sync(); });
+// a link from the layout page: #open=<font name> shows it, #new=<name> makes it (blank) if it isn't there
+function fromHash() {
+  const h = new URLSearchParams(location.hash.slice(1)); if (!h.has("open") && !h.has("new")) return;
+  const n = h.get("open") || h.get("new");
+  history.replaceState(null, "", location.pathname);
+  if (!n) return;
+  if (!DB.fonts[n]) { if (!h.has("new")) return status(`there's no font “${n.replace(/</g, "&lt;")}” here`); push(); DB.fonts[n] = blank(n); status(`new font <b>${n.replace(/</g, "&lt;")}</b> for the layout: “Start from” gives you the Sidecar glyphs to begin with`); }
+  DB.current = n; cur = Object.keys(F().glyphs)[0] || "A"; changed();
+}
+addEventListener("hashchange", fromHash);
+const F = () => DB.fonts[DB.current];
+function push() { hist.push(JSON.stringify(DB)); if (hist.length > 200) hist.shift(); }
+function changed() { persist(); renderAll(); }
+const glyph = (ch) => F().glyphs[ch];
+const status = (h) => ($("status").innerHTML = h);
+
+// ---------- the glyph grid
+const cv = $("cv"), cx = cv.getContext("2d");
+function rowsOf(ch) { const g = glyph(ch), h = F().height; const w = g ? Math.max(0, ...g.map((r) => r.length)) : 0; return Array.from({ length: h }, (_, j) => ((g && g[j]) || "").padEnd(w, ".").slice(0, w)); }
+function setRows(ch, rows) { F().glyphs[ch] = rows; }
+function drawGrid() {
+  const h = F().height, rows = rowsOf(cur), w = rows[0]?.length || 0, MG = 18;
+  Z = Math.max(10, Math.min(36, Math.floor(Math.min(460 / Math.max(w + 2, 4), 420 / h))));
+  cv.width = (w + 2) * Z + MG; cv.height = h * Z + MG;
+  cx.fillStyle = "#15171a"; cx.fillRect(0, 0, cv.width, cv.height);
+  cx.font = "10px ui-monospace, Menlo, monospace"; cx.fillStyle = "#6b737c"; cx.textAlign = "center"; cx.textBaseline = "middle";
+  for (let i = 0; i < w; i++) cx.fillText(String(i), MG + (i + 1.5) * Z, MG / 2);
+  for (let j = 0; j < h; j++) cx.fillText(String(j), MG / 2, MG + (j + 0.5) * Z);
+  cx.translate(MG, 0);
+  cx.fillStyle = "#0b0d10"; cx.fillRect(0, MG, (w + 2) * Z, h * Z);   // a column of room either side (dim)
+  cx.fillStyle = "#07090b"; cx.fillRect(Z, MG, w * Z, h * Z);
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) if (rows[j][i] === "#") { cx.fillStyle = "#dfeeff"; cx.fillRect((i + 1) * Z + 1, MG + j * Z + 1, Z - 2, Z - 2); }
+  cx.strokeStyle = "#1c232b";
+  for (let i = 0; i <= w + 2; i++) { cx.beginPath(); cx.moveTo(i * Z + 0.5, MG); cx.lineTo(i * Z + 0.5, MG + h * Z); cx.stroke(); }
+  for (let j = 0; j <= h; j++) { cx.beginPath(); cx.moveTo(0, MG + j * Z + 0.5); cx.lineTo((w + 2) * Z, MG + j * Z + 0.5); cx.stroke(); }
+  cx.strokeStyle = "#5fb3ff"; cx.strokeRect(Z + 0.5, MG + 0.5, w * Z - 1, h * Z - 1);
+  cx.setTransform(1, 0, 0, 1, 0, 0);
+  $("cur").textContent = cur === " " ? "space" : `“${cur}”  ${cur.charCodeAt(0)}`;
+  $("wVal").textContent = ` ${w} `;
+}
+// painting: a click outside the glyph's width widens it to reach
+function cellAt(e) { const r = cv.getBoundingClientRect(), MG = 18; return [Math.floor(((e.clientX - r.left) * (cv.width / r.width) - MG) / Z) - 1, Math.floor(((e.clientY - r.top) * (cv.height / r.height) - MG) / Z)]; }
+function setPx(i, j, on) {
+  const h = F().height; if (j < 0 || j >= h) return;
+  let rows = rowsOf(cur);
+  if (i < 0) { if (!on) return; rows = rows.map((r) => ".".repeat(-i) + r); i = 0; }
+  const w = rows[0]?.length || 0;
+  if (i >= w) { if (!on) return; rows = rows.map((r) => r + ".".repeat(i - w + 1)); }
+  rows[j] = rows[j].slice(0, i) + (on ? "#" : ".") + rows[j].slice(i + 1);
+  setRows(cur, rows);
+}
+cv.addEventListener("pointerdown", (e) => {
+  cv.setPointerCapture(e.pointerId);
+  const [i, j] = cellAt(e), rows = rowsOf(cur), lit = rows[j] && rows[j][i] === "#";
+  push(); paint = !lit; setPx(i, j, paint); drawGrid(); renderLive();
+});
+cv.addEventListener("pointermove", (e) => {
+  const [i, j] = cellAt(e);
+  status(`column ${i}, row ${j}`);
+  if (paint === null) return;
+  setPx(i, j, paint); drawGrid(); renderLive();
+});
+cv.addEventListener("pointerup", () => { if (paint !== null) { paint = null; changed(); } });
+
+// ---------- glyph tools
+$("wPlus").onclick = (e) => { push(); const rows = rowsOf(cur); setRows(cur, rows.length && rows[0].length ? rows.map((r) => (e.shiftKey ? "." + r : r + ".")) : Array(F().height).fill(".")); changed(); };
+$("wMinus").onclick = (e) => { push(); setRows(cur, rowsOf(cur).map((r) => (e.shiftKey ? r.slice(1) : r.slice(0, -1)))); changed(); };
+document.querySelectorAll("[data-shift]").forEach((b) => (b.onclick = () => {
+  const [dx, dy] = b.dataset.shift.split(",").map(Number), rows = rowsOf(cur), w = rows[0]?.length || 0, h = rows.length;
+  push();
+  setRows(cur, rows.map((_, j) => Array.from({ length: w }, (_, i) => { const si = i - dx, sj = j - dy; return si >= 0 && si < w && sj >= 0 && sj < h ? rows[sj][si] : "."; }).join("")));
+  changed();
+}));
+$("gCopy").onclick = () => { clip = rowsOf(cur); status(`copied “${cur}”: pick another character and Paste`); };
+$("gPaste").onclick = () => { if (!clip) return; push(); setRows(cur, clip.slice()); changed(); };
+$("gClear").onclick = () => { push(); setRows(cur, rowsOf(cur).map((r) => ".".repeat(r.length))); changed(); };
+$("gDel").onclick = () => { push(); delete F().glyphs[cur]; changed(); };
+
+// ---------- the character map
+function mini(ch, s = 2) {
+  const c = document.createElement("canvas"), rows = rowsOf(ch), w = rows[0]?.length || 0, h = F().height;
+  const sc = Math.max(1, Math.min(s, Math.floor(22 / h)));
+  c.width = Math.max(1, w) * sc; c.height = h * sc;
+  const x = c.getContext("2d"); x.fillStyle = "#dfeeff";
+  rows.forEach((r, j) => [...r].forEach((p, i) => p === "#" && x.fillRect(i * sc, j * sc, sc, sc)));
+  return c;
+}
+function renderMap() {
+  const m = $("map"); m.innerHTML = "";
+  for (const ch of CHARS) {
+    const b = document.createElement("button"), has = !!glyph(ch);
+    b.className = (has ? "has" : "") + (ch === cur ? " on" : "");
+    b.title = ch === " " ? "space" : ch;
+    b.append(has ? mini(ch) : document.createElement("span"), ch === " " ? "␣" : ch);
+    b.onclick = () => { cur = ch; renderAll(); };
+    m.append(b);
+  }
+  $("count").textContent = `· ${Object.keys(F().glyphs).length} drawn`;
+}
+
+// ---------- preview and checks, drawn by the real renderer's font code
+function renderText(c, s, scale) {
+  const CF = R.compileFont(F()), w = Math.max(1, R.measure(CF, s)), h = F().height;
+  const L = { format: "rmpui-1", fonts: { f: F() }, pages: { 1: [{ type: "text", x: 0, y: 0, text: s, font: "f" }] } };
+  const fb = R.render(L, 1, []).fb, W = Math.min(128, w);
+  c.width = W * scale; c.height = h * scale;
+  const x = c.getContext("2d"); x.fillStyle = "#000"; x.fillRect(0, 0, c.width, c.height); x.fillStyle = "#dfeeff";
+  for (let j = 0; j < h; j++) for (let i = 0; i < W; i++) if (fb[j * 16 + (i >> 3)] & (0x80 >> (i & 7))) x.fillRect(i * scale, j * scale, scale, scale);
+  return w;
+}
+function renderLive() {
+  const s = $("sample").value, w = renderText($("pv4"), s, 3); renderText($("pv1"), s, 1);
+  $("pvw").textContent = `${w} px wide${w > 128 ? " (the screen is 128: cut off)" : ""}`;
+  const CF = R.compileFont(F()), fit = +$("fitW").value, box = $("checks"); box.innerHTML = "";
+  for (const line of $("strs").value.split("\n")) {
+    if (!line) continue;
+    const w = R.measure(CF, line), miss = [...new Set([...line].filter((ch) => ch !== " " && !CF.g[ch] && !CF.g[ch === ch.toUpperCase() ? ch.toLowerCase() : ch.toUpperCase()]))];
+    const d = document.createElement("div"), over = fit && w > fit;
+    d.innerHTML = `<span class="w ${over ? "bad" : fit ? "ok" : ""}">${w}px</span><span>${line.replace(/</g, "&lt;")}</span>${miss.length ? `<span class="bad">no ${miss.join(" ")}</span>` : ""}`;
+    box.append(d);
+  }
+}
+function renderAll() {
+  const sel = $("fontSel"); sel.innerHTML = Object.keys(DB.fonts).map((n) => `<option ${n === DB.current ? "selected" : ""}>${n.replace(/</g, "&lt;")}</option>`).join("");
+  $("height").value = F().height; $("spacing").value = F().spacing; $("space").value = F().space;
+  $("sample").value = DB.sample ?? "The quick brown fox 0123456789"; $("strs").value = DB.checks ?? ""; $("fitW").value = DB.fit ?? 0;
+  drawGrid(); renderMap(); renderLive();
+}
+
+// ---------- fonts
+$("fontSel").onchange = () => { DB.current = $("fontSel").value; changed(); };
+$("newFont").onclick = () => { const n = prompt("Name of the new font:", "my font " + (Object.keys(DB.fonts).length + 1)); if (!n || DB.fonts[n]) return; push(); DB.fonts[n] = blank(n); DB.current = n; changed(); };
+$("dupFont").onclick = () => { const n = DB.current + " copy"; push(); DB.fonts[n] = { ...JSON.parse(JSON.stringify(F())), name: n }; DB.current = n; changed(); };
+$("renFont").onclick = () => { const n = prompt("New name:", DB.current); if (!n || DB.fonts[n]) return; push(); DB.fonts[n] = { ...F(), name: n }; DB.ids = DB.ids || {}; if (DB.ids[DB.current]) { DB.ids[n] = DB.ids[DB.current]; delete DB.ids[DB.current]; } delete DB.fonts[DB.current]; DB.current = n; changed(); };
+$("delFont").onclick = () => {
+  if (Object.keys(DB.fonts).length < 2 || !confirm(`Delete the font "${DB.current}"? It goes from the library too (layouts that use it by name will miss it).`)) return;
+  push(); const id = DB.ids?.[DB.current]; if (id) { LIB.del(id).catch(() => {}); delete DB.ids[DB.current]; }
+  delete DB.fonts[DB.current]; DB.current = Object.keys(DB.fonts)[0]; changed();
+};
+for (const id of ["height", "spacing", "space"]) $(id).onchange = () => { push(); F()[id] = Math.max(id === "height" ? 1 : 0, $(id).value | 0); changed(); };
+$("sample").oninput = () => { DB.sample = $("sample").value; persist(); renderLive(); };
+$("strs").oninput = () => { DB.checks = $("strs").value; persist(); renderLive(); };
+$("fitW").oninput = () => { DB.fit = +$("fitW").value; persist(); renderLive(); };
+// the Sidecar's CC0 fonts as a start (ASCII 32..95, upper case only)
+$("starter").onchange = () => {
+  const which = $("starter").value; $("starter").value = ""; if (!which) return;
+  const data = R.FONT_DATA[which], cols = which === "F3" ? 3 : 5, rows = which === "F3" ? 5 : 7;
+  push();
+  F().height = rows;
+  for (let c = 33; c <= 95; c++) {
+    const g = data.slice((c - 32) * cols, (c - 31) * cols);
+    let r = Array.from({ length: rows }, (_, j) => g.map((col) => ((col >> j) & 1 ? "#" : ".")).join(""));
+    if ($("trim").checked) { const on = [...Array(cols).keys()].filter((i) => r.some((row) => row[i] === "#")); if (on.length) r = r.map((row) => row.slice(on[0], on[on.length - 1] + 1)); }
+    F().glyphs[String.fromCharCode(c)] = r;
+  }
+  status(`loaded the Sidecar ${which === "F3" ? "3×5" : "5×7"} glyphs (! to _): draw lower case and the rest yourself`);
+  changed();
+};
+$("undo").onclick = undo;
+function undo() { const t = hist.pop(); if (t) { DB = JSON.parse(t); changed(); } }
+$("save").onclick = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(F(), null, 1)], { type: "application/json" })); a.download = DB.current.replace(/[^A-Za-z0-9_-]+/g, "_") + ".font.json"; a.click(); };
+$("imp").onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  try { const j = JSON.parse(await f.text()); if (!j.glyphs) throw 0; push(); const n = DB.fonts[j.name] ? j.name + " (imported)" : j.name || "imported"; DB.fonts[n] = { ...j, name: n }; DB.current = n; changed(); }
+  catch (err) { status("that file isn't a font (rmpui-font-1)"); }
+};
+$("copyJson").onclick = () => { navigator.clipboard?.writeText(JSON.stringify(F())); status(`copied the font “${DB.current}” as JSON`); };
+document.addEventListener("keydown", (e) => {
+  if (["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
+  if ((e.metaKey || e.ctrlKey) && e.key === "z") { e.preventDefault(); undo(); return; }
+  if ((e.metaKey || e.ctrlKey) && e.key === "c") { e.preventDefault(); $("gCopy").click(); return; }
+  if ((e.metaKey || e.ctrlKey) && e.key === "v") { e.preventDefault(); $("gPaste").click(); return; }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key.length === 1 && e.key >= " " && e.key <= "~") { e.preventDefault(); cur = e.key; renderAll(); }
+});
+// another page (a tutorial) can hand a font over
+addEventListener("storage", (e) => { if (e.key === STORE) { DB = load(); renderAll(); } });
+DB = load();
+cur = Object.keys(F().glyphs)[0] || "A";
+renderAll();
+sync().then(fromHash);
+</script>
+</body>
+</html>

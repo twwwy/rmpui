@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ripple Tutorial</title>
+<link rel="stylesheet" href="tutorial.css">
+</head>
+<body>
+<div class="wrap">
+  <h1>Tutorial: a feedback ripple, DN style</h1>
+  <p class="sub">Build a 13 × 13 animated control in the sketch editor: rings that ripple out from the centre as a param turns up, inside a fixed frame. It's modelled on an FM synth's <b>FDBK</b>. About 10 minutes.</p>
+  <p class="tip">Inspired by the Elektron DN's screens. Not affiliated with Elektron.</p>
+
+  <div class="card hero">
+    <figure><canvas id="heroOurs" class="pix"></canvas><figcaption>what you'll build</figcaption></figure>
+    <figure id="heroRefFig" hidden><canvas id="heroRef" class="pix"></canvas><figcaption>the DN (reference)</figcaption></figure>
+    <div style="flex:1;min-width:200px">
+      <div style="color:var(--dim);font-size:12px">value <b id="heroV" style="color:var(--text)">0</b></div>
+      <input type="range" id="heroS" min="0" max="127" value="0" style="width:100%">
+    </div>
+  </div>
+
+  <h2><span class="n">0</span> Look before you draw</h2>
+  <p>Sweep the slider above (or watch it play). The control has three parts, and how each part behaves decides how you build it:</p>
+  <div class="parts">
+    <div class="card"><figure><canvas id="partFrame" class="pix"></canvas></figure><b>The frame</b><br><span style="color:var(--dim)">Four diagonal corners. Never moves → <b>linked</b> objects.</span></div>
+    <div class="card"><figure><canvas id="partR1" class="pix"></canvas></figure><b>Ripple 1</b><br><span style="color:var(--dim)">Grows from nothing at 0 to full size at 63, then stays → <b>grows from its centre</b>.</span></div>
+    <div class="card"><figure><canvas id="partR23" class="pix"></canvas></figure><b>Ripples 2 and 3</b><br><span style="color:var(--dim)">Start again at 64 and 108 → <b>more keys</b>, each ring missing where it hasn't started yet.</span></div>
+  </div>
+  <p>Every shape is an <b>octagon</b>: flat 3-pixel ends and 45° sides, which is a "circle" at this size. Drawing octagons with clicks (not freehand) gets every pixel right.</p>
+  <div id="refFilm" hidden>
+    <h3>The reference, every 4th value</h3>
+    <div class="film" id="refFilmBox"></div>
+  </div>
+
+  <p class="tip">Each step's picture shows what you should have <b>after</b> the step. <b>Load this result</b> puts that into the editor, to catch up or skip ahead.</p>
+
+  <h2 data-step="1"><span class="n">1</span> Set up the cell</h2>
+  <div class="card step"><div>
+    <ol>
+      <li>Open <a href="sketch.html" target="_blank" style="color:var(--accent)">the editor</a> and click <b class="ui">New</b>.</li>
+      <li>Set <b class="ui">Cell</b> to <code>13</code> × <code>13</code>.</li>
+      <li>Check the editor's title says <b>v4</b> or later. If it doesn't, reload the page (<kbd>⌘R</kbd>).</li>
+      <li>Set <b class="ui">Frames</b> to <code>32</code>. The DN shows 32 different images for this control, one for every 4 values, so 32 frames is enough and 128 would waste memory.</li>
+    </ol>
+  </div><figure><canvas data-stage="0" class="pix"></canvas><figcaption>empty 13 × 13</figcaption><p><button class="btn" data-open="0">Load this result</button></p></figure></div>
+
+  <h2 data-step="2"><span class="n">2</span> Plan the keys</h2>
+  <div class="card step"><div>
+    <p>A key is a param value where you say exactly what the control looks like. You have <code>0</code> and <code>127</code>; add four more:</p>
+    <ol>
+      <li>Click key <code>0</code>, then <b class="ui">+ Key</b>. Type <code>63</code> into the new key's box and press <kbd>Enter</kbd>.</li>
+      <li>Repeat for <code>64</code>, <code>99</code> and <code>108</code>.</li>
+    </ol>
+    <p>What they're for:</p>
+    <ul>
+      <li><code>0 → 63</code>: ripple 1 grows.</li>
+      <li><code>64 → 99</code>: ripple 2 grows.</li>
+      <li><code>108 → 127</code>: ripple 3 grows.</li>
+      <li>63/64 and 99/108 are pairs, so a new ring starts right where the last one stops.</li>
+    </ul>
+  </div><figure><canvas data-stage="1" class="pix"></canvas><figcaption>keys 0 63 64 99 108 127</figcaption><p><button class="btn" data-open="1">Load this result</button></p></figure></div>
+
+  <h2 data-step="3"><span class="n">3</span> Draw the frame (linked)</h2>
+  <div class="card step"><div>
+    <ol>
+      <li>Leave <b class="ui">New shapes linked</b> ticked: the frame goes on every key and stays still.</li>
+      <li>Pick <b class="ui">Line</b> <kbd>2</kbd>. Drag four short diagonals, one across each corner:
+        <ul>
+          <li>top-left: from <code>(3,0)</code> to <code>(0,3)</code></li>
+          <li>top-right: <code>(9,0)</code> to <code>(12,3)</code></li>
+          <li>bottom-left: <code>(0,9)</code> to <code>(3,12)</code></li>
+          <li>bottom-right: <code>(12,9)</code> to <code>(9,12)</code></li>
+        </ul>
+        Coordinates are (column, row): the numbers along the top are columns, those down the left are rows. The line under the grid shows the pixel under your pointer, and while you drag it shows "from … to …".</li>
+      <li>Your drag doesn't have to be neat: lines snap to exact 45°.</li>
+    </ol>
+    <p class="tip">Rename objects in the right panel (<b>Name</b>) as you go, e.g. "frame TL". The list stays readable when you have ten of them.</p>
+  </div><figure><canvas data-stage="2" class="pix"></canvas><figcaption>4 linked lines</figcaption><p><button class="btn" data-open="2">Load this result</button></p></figure></div>
+
+  <h2 data-step="4"><span class="n">4</span> Ripple 1: draw once, remove it at key 0</h2>
+  <div class="card step"><div>
+    <ol>
+      <li>Still linked: pick <b class="ui">Poly</b> <kbd>6</kbd>. <b>Click</b> each of the 8 corners of the big octagon, going round. A little wobble while clicking is fine. The corners so far show under the grid. Click the first corner again to close it:
+        <br><code>(5,0) (7,0) (12,5) (12,7) (7,12) (5,12) (0,7) (0,5)</code></li>
+      <li>Check <b>Objects</b> shows <b>one</b> new poly. If you got several, undo with <kbd>⌘Z</kbd> and reload the editor: an older cached copy treated each click as a separate shape.</li>
+      <li>It's on every key now. Click key <code>0</code>, then click the <b class="ui">●</b> next to the octagon in <b>Objects</b>. That removes it from key 0 only (and unlinks it).</li>
+      <li>Check <b class="ui">Comes / goes</b> says <b>grows from its centre</b>. Sweep the preview: the ring grows from a dot.</li>
+    </ol>
+    <p class="tip"><b>Why remove instead of drawing it small at key 0?</b> "Missing from a key" means "comes out of nothing" to the editor, and the in-between sizes are made for you.</p>
+  </div><figure><canvas data-stage="3" class="pix" data-v="40"></canvas><figcaption>value 40: growing</figcaption><p><button class="btn" data-open="3">Load this result</button></p></figure></div>
+
+  <h2 data-step="5"><span class="n">5</span> Ripple 2: draw unlinked, paste forward</h2>
+  <div class="card step"><div>
+    <ol>
+      <li>Untick <b class="ui">New shapes linked</b>. Click key <code>99</code>.</li>
+      <li>With <b class="ui">Poly</b>, click the middle octagon's corners, then click the first again:
+        <br><code>(5,2) (7,2) (10,5) (10,7) (7,10) (5,10) (2,7) (2,5)</code></li>
+      <li><kbd>⌘C</kbd>, click key <code>108</code>, <kbd>⌘V</kbd>, click key <code>127</code>, <kbd>⌘V</kbd>. Pasting into a key that lacks it adds the <b>same object</b>, so it stays put from 99 on.</li>
+    </ol>
+    <p>It's missing from keys 0, 63 and 64, so it grows between 64 and 99.</p>
+  </div><figure><canvas data-stage="4" class="pix" data-v="84"></canvas><figcaption>value 84: ring 2 growing</figcaption><p><button class="btn" data-open="4">Load this result</button></p></figure></div>
+
+  <h2 data-step="6"><span class="n">6</span> Ripple 3</h2>
+  <div class="card step"><div>
+    <ol>
+      <li>Click key <code>127</code>. With <b class="ui">Poly</b>, click the small octagon, then the first corner again:
+        <br><code>(5,4) (7,4) (8,5) (8,7) (7,8) (5,8) (4,7) (4,5)</code></li>
+      <li>Done. Press <b class="ui">▶ Sweep</b> in the preview.</li>
+    </ol>
+  </div><figure><canvas data-stage="5" class="pix" data-v="127"></canvas><figcaption>value 127: all three</figcaption><p><button class="btn primary" data-open="5">Open the finished sketch</button></p></figure></div>
+
+  <h2 data-step="7"><span class="n">7</span> Put it on the Rytm screen</h2>
+  <ol>
+    <li>In the editor, set <b class="ui">Name</b> to <code>ripple</code>, then click <b class="ui">Copy JSON</b>.</li>
+    <li>Paste it into your layout's <code>"bitmaps"</code>.</li>
+    <li>Add a frames element on the page where you want it, driven by your feedback param, e.g. P5 on the first page:</li>
+  </ol>
+  <pre>{ "type": "frames", "bmp": "ripple", "p": 5, "x": 88, "y": 42 }</pre>
+  <p>Cost: 32 frames × 26 bytes = <b>832 B</b>. Because the frames are plain bitmaps, the Rytm shows exactly what the editor previews.</p>
+  <p class="tip"><b>Saving memory on bigger controls:</b> every frame stores the whole cell, static parts included. If a control has a large part that never moves, draw that part with layout elements (<code>line</code>, <code>box</code>…) and make the cell cover only the moving part.</p>
+
+  <h2><span class="n">✓</span> What you used</h2>
+  <ul>
+    <li><b>Shape picker</b> (Line, Poly) and <b>click-to-place corners</b> for exact pixels.</li>
+    <li><b>Linked</b> objects for anything that stays still.</li>
+    <li><b>Keys</b> placed where something starts or stops, including back-to-back pairs (63/64).</li>
+    <li><b>Missing from a key = comes out of nothing</b>, with a "grows from its centre" style.</li>
+    <li><b>Copy / paste the same object</b> into later keys, so it holds still.</li>
+  </ul>
+</div>
+<script type="module">
+import * as K from "./sketch.js";
+import { setup, paint, clone } from "./tutorial.js";
+
+// the sketch after each step (the same moves as the steps, so "Open in editor" starts you there)
+const oct = (r) => [[-1, -r], [1, -r], [r, -1], [r, 1], [1, r], [-1, r], [-r, 1], [-r, -1]].map(([x, y]) => [6 + x, 6 + y]);
+const FRAME = [[[3, 0], [0, 3], "frame TL"], [[9, 0], [12, 3], "frame TR"], [[0, 9], [3, 12], "frame BL"], [[12, 9], [9, 12], "frame BR"]];
+function stage(n) {
+  const keys = n >= 1 ? [0, 63, 64, 99, 108, 127] : [0, 127];
+  const S = { w: 13, h: 13, steps: 32, next: 1, objs: [], keys: keys.map((v) => ({ v, shapes: [] })) };
+  const add = (shape, name, inKeys, linked) => {
+    const id = S.next++; S.objs.push({ id, name, linked, appear: "grow" });
+    for (const k of S.keys) if (inKeys.includes(k.v)) k.shapes.push(Object.assign(clone(shape), { id }));
+  };
+  if (n >= 2) for (const [a, b, name] of FRAME) add({ kind: "line", a, b }, name, keys, true);
+  if (n >= 3) add({ kind: "poly", pts: oct(6), closed: true }, "ripple 1", [63, 64, 99, 108, 127], false);
+  if (n >= 4) add({ kind: "poly", pts: oct(4), closed: true }, "ripple 2", [99, 108, 127], false);
+  if (n >= 5) add({ kind: "poly", pts: oct(2), closed: true }, "ripple 3", [127], false);
+  return S;
+}
+const { FINAL } = await setup({ id: "fdbk", stage, last: 5, ref: "priv/fdbk_ref.json", scale: 8, filmEvery: 4 });
+const only = (ids, v) => K.draw(K.shapesAt(FINAL, v).filter((s) => ids.includes(s.id)), 13, 13);
+paint(document.getElementById("partFrame"), only([1, 2, 3, 4], 127), 6, 13, 13);
+paint(document.getElementById("partR1"), only([5], 40), 6, 13, 13);
+paint(document.getElementById("partR23"), only([6, 7], 120), 6, 13, 13);
+</script>
+</body>
+</html>
