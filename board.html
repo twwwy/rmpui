@@ -90,6 +90,7 @@ dialog::backdrop { background: #0008; }
   <button class="btn" id="newBtn" title="Start a board from a plugin's manifest.json: every parameter gets a slot">+ From manifest…</button>
   <input type="file" id="mfFile" accept=".json,application/json" hidden>
   <select id="model" title="How the Rytm lays out this plugin's knobs"></select>
+  <select id="banners" title="Banner mode: keep the Rytm's own top banner (page title, pattern, tempo) and / or bottom banner (name, level, position); the plugin draws the band between"></select>
   <span class="sp"></span>
   <button class="btn" id="sweep" title="Turn every knob from 0 to 127 and back">▶ Sweep all</button>
   <button class="btn" id="dflt" title="Every knob at the plugin's default value">Defaults</button>
@@ -133,7 +134,18 @@ import * as LIB from "./lib.js";
 import { startAgent } from "./agent.js";
 import { esc } from "./lib-ui.js";
 const $ = (id) => document.getElementById(id);
-const ROWS = [{ gy: 11, gh: 18, ly: 31 }, { gy: 39, gh: 18, ly: 58 }];   // knob graphics rows; label tops
+// knob graphics rows (top, height) and label tops. Banner mode (the draw returns RMP_DRAW_KEEP_TOP / _BOTTOM): the Rytm
+// keeps its stock top banner (rows 0..8) and / or bottom banner (rows 55..63) over the plugin's frame. Without the top
+// banner the board draws its own title line in rows 0..8, so the slots start at row 9 either way; the bottom banner
+// leaves rows 9..54 (46), so the rows pack tighter: the stock pages' spacing (the user's pick,
+// 2026-11-21): graphics 16 at y 10 / 32, labels at 26 / 48, so the content sits in rows 10..52. vy: a value's top.
+const ROWS_FULL = [{ gy: 11, gh: 18, ly: 31, vy: 17 }, { gy: 39, gh: 18, ly: 58, vy: 45 }];
+const ROWS_BAND = [{ gy: 10, gh: 16, ly: 26, vy: 14 }, { gy: 32, gh: 16, ly: 48, vy: 36 }];
+const BANNERS = { none: "Full screen (no stock banners)", both: "Keep both stock banners", top: "Keep the top banner", bottom: "Keep the bottom banner" };
+const banners = () => (B?.data.banners in BANNERS ? B.data.banners : "none");
+const keepTop = () => banners() === "both" || banners() === "top", keepBot = () => banners() === "both" || banners() === "bottom";
+let ROWS = ROWS_FULL;
+const setRows = () => { ROWS = keepBot() ? ROWS_BAND : ROWS_FULL; };
 const SC = 4, PER = 8, CUR_K = "rmpui-board-cur";
 let boards = [], B = null, sel = null, vals = {}, sketches = new Map(), sweeping = 0;
 let view = "work";   // what the pages show: "work" (the board's own set), a language's id, or "compare" (every language)
@@ -196,19 +208,22 @@ const langOf = (id) => (B?.data.langs || []).find((l) => l.id === id);
 // which sketch draws P: the board's own (its working set), or a language's
 const bmpFor = (q, lang) => (lang ? lang.bmps[q.p] : q.bmp);
 function layoutOf(embed, lang) {
-  const pages = {}, bitmaps = {}, P = pagesOf();
+  const pages = {}, bitmaps = {}, P = pagesOf(); setRows();
   P.forEach((list, pi) => {
-    const els = [{ type: "text", x: 2, y: 1, text: B.data.plugin.name.toUpperCase(), font: 0 }];
-    if (P.length > 1) els.push({ type: "text", x: 98, y: 1, w: 28, align: "right", text: `${pi + 1}/${P.length}`, font: 0 });
-    els.push({ type: "line", x: 0, y: 8, x2: 127, y2: 8, dotted: true });
+    const els = [];
+    if (!keepTop()) {   // the board's own title line (with the stock top banner kept, the Rytm shows the page title)
+      els.push({ type: "text", x: 2, y: 1, text: B.data.plugin.name.toUpperCase(), font: 0 });
+      if (P.length > 1) els.push({ type: "text", x: 98, y: 1, w: 28, align: "right", text: `${pi + 1}/${P.length}`, font: 0 });
+      els.push({ type: "line", x: 0, y: 8, x2: 127, y2: 8, dotted: true });
+    }
     list.forEach((q, i) => {
       const col = i % 4, R = ROWS[i >> 2];
       if (!q) return;
       if (q.host) {   // the Sidecar's own control on this page (values in P17..P20), drawn the same for every effect
-        const mid = R.gy + Math.floor(R.gh / 2) - 3;
+        const mid = R.vy;
         if (q.host === "TYPE") els.push({ type: "text", x: col * 32, y: mid, w: 32, align: "center", text: (B.data.plugin.short || B.data.plugin.name).toUpperCase().slice(0, 5), font: 1 });
         if (q.host === "ROUTE") els.push({ type: "value", x: col * 32, y: mid, w: 32, align: "center", p: q.p, font: 1, fmt: "list", items: ["PRE", "POST"] });
-        if (q.host === "BASE") els.push({ type: "band", x: col * 32 + 1, y: R.gy + 2, w: 62, h: 14, a: 19, d: 20, frame: true });   // one band across BASE | WIDTH
+        if (q.host === "BASE") els.push({ type: "band", x: col * 32 + 1, y: R.gy + Math.floor((R.gh - 14) / 2), w: 62, h: 14, a: 19, d: 20, frame: true });   // one band across BASE | WIDTH
         els.push({ type: "text", x: col * 32, y: R.ly, w: 32, align: "center", text: q.host, font: 0 });
         return;
       }
@@ -219,13 +234,14 @@ function layoutOf(embed, lang) {
         if (embed) bitmaps[bn] = b;
       } else {
         const list = q.look === "list" && q.names?.length;
-        els.push({ type: "value", x: col * 32, y: R.gy + Math.floor(R.gh / 2) - 3, w: 32, align: "center", p: q.p, font: 1, ...(list ? { fmt: "list", items: q.names } : {}) });
+        els.push({ type: "value", x: col * 32, y: R.vy, w: 32, align: "center", p: q.p, font: 1, ...(list ? { fmt: "list", items: q.names } : {}) });
       }
       els.push({ type: "text", x: col * 32, y: R.ly, w: 32, align: "center", text: q.short, font: 0 });
     });
     pages[pi + 1] = els;
   });
-  return { format: "rmpui-1", name: slug(B.data.plugin.name) || "board", pages, ...(embed ? { bitmaps } : {}) };
+  const bn = banners() === "none" ? {} : { banners: { top: keepTop(), bottom: keepBot() } };
+  return { format: "rmpui-1", name: slug(B.data.plugin.name) || "board", ...bn, pages, ...(embed ? { bitmaps } : {}) };
 }
 function pvals() {
   const p = new Array(32).fill(64);
@@ -243,6 +259,15 @@ function paint(c, fb, s) {
   const x = c.getContext("2d"); x.fillStyle = "#000"; x.fillRect(0, 0, c.width, c.height); x.fillStyle = "#dfeeff";
   for (let y = 0; y < 64; y++) for (let i = 0; i < 128; i++) if (lit(fb, i, y)) x.fillRect(i * s, y * s, s, s);
 }
+function shadeBanners(c, s) {   // the rows the Rytm's stock banners cover, greyed (the plugin's pixels there never show)
+  const x = c.getContext("2d"); x.save(); x.fillStyle = "rgba(120,128,140,0.55)";
+  if (keepTop()) x.fillRect(0, 0, 128 * s, RUI.BANNER_TOP * s);
+  if (keepBot()) x.fillRect(0, RUI.BANNER_BOTTOM * s, 128 * s, (64 - RUI.BANNER_BOTTOM) * s);
+  x.fillStyle = "rgba(255,255,255,0.75)"; x.font = `${Math.max(8, 3 * s)}px system-ui, sans-serif`; x.textBaseline = "middle";
+  if (keepTop()) x.fillText("Rytm top banner: page title · pattern · tempo", 3 * s, 4.5 * s);
+  if (keepBot()) x.fillText("Rytm bottom banner: name · level · position", 3 * s, 59.5 * s);
+  x.restore();
+}
 function renderCompare() {
   const host = $("pages"), langs = B.data.langs || [], n = pagesOf().length;
   if (!host.querySelector(".cmp") || host.querySelectorAll(".cmp .card").length !== langs.length) {
@@ -254,7 +279,7 @@ function renderCompare() {
   }
   host.querySelectorAll(".cmp .card").forEach((card) => {
     const L = layoutOf(true, langOf(card.dataset.lang));
-    card.querySelectorAll("canvas").forEach((c) => paint(c, fbOf(+c.dataset.page, L), 2));
+    card.querySelectorAll("canvas").forEach((c) => { paint(c, fbOf(+c.dataset.page, L), 2); shadeBanners(c, 2); });
   });
   $("warns").innerHTML = "";
 }
@@ -268,12 +293,12 @@ function renderPages() {
     host.innerHTML = P.map((_, i) => { const ps = P[i].filter(isParam); return `<div class="page"><div class="cap"><b>Page ${i + 1}</b><span class="dim">${ps.length ? `${ps.map((q) => q.short).join(" ")}` : ""}${P[i].some((c) => c && c.host) ? " · A–D: the Sidecar's TYPE ROUTE BASE WIDTH" : ""}</span></div><div class="oled"><canvas data-page="${i + 1}" width="${128 * SC}" height="${64 * SC}"></canvas></div></div>`; }).join("");
     host.querySelectorAll("canvas").forEach((c) => {
       c.onclick = (e) => { const r = c.getBoundingClientRect(), x = ((e.clientX - r.left) / r.width) * 128, y = ((e.clientY - r.top) / r.height) * 64;
-        const pg = +c.dataset.page, col = Math.min(3, Math.floor(x / 32)), row = y < 35 ? 0 : 1, q = P[pg - 1][row * 4 + col]; if (isParam(q)) select(q.p, true); };
+        const pg = +c.dataset.page, col = Math.min(3, Math.floor(x / 32)), row = y < (ROWS[0].ly + 5 + ROWS[1].gy) / 2 ? 0 : 1, q = P[pg - 1][row * 4 + col]; if (isParam(q)) select(q.p, true); };
     });
   }
   host.querySelectorAll("canvas").forEach((c) => {
     const pg = +c.dataset.page, fb = fbOf(pg, L), x = c.getContext("2d");
-    paint(c, fb, SC);
+    paint(c, fb, SC); shadeBanners(c, SC);
     P[pg - 1].forEach((q, i) => {   // slots: dashed blue = no graphic yet, orange = the one you're on
       if (!isParam(q)) return;
       const col = i % 4, R = ROWS[i >> 2], st = lang ? (sketches.has(bmpFor(q, lang)) ? "draft" : "empty") : statusOf(q);
@@ -350,7 +375,10 @@ function renderLegend() {
 function renderModel() {
   $("model").innerHTML = Object.entries(MODELS).map(([k, t]) => `<option value="${k}">${t}</option>`).join(""); $("model").disabled = !B;
   if (B) $("model").value = model();
+  $("banners").innerHTML = Object.entries(BANNERS).map(([k, t]) => `<option value="${k}">${t}</option>`).join(""); $("banners").disabled = !B;
+  if (B) $("banners").value = banners();
 }
+$("banners").onchange = async () => { if (!B) return; B.data.banners = $("banners").value; await saveBoard(); $("pages").innerHTML = ""; renderAll(); };
 $("model").onchange = async () => { if (!B) return; B.data.model = $("model").value; await saveBoard(); $("pages").innerHTML = ""; renderAll(); };
 function renderBoards() {
   $("boardSel").innerHTML = boards.length ? boards.map((b) => `<option value="${b.id}">${esc(b.name)}</option>`).join("") : `<option value="">No boards yet</option>`;
@@ -449,7 +477,7 @@ const agentOps = {
   board_list: async () => ({ items: boards.map(({ id, name, updated }) => ({ id, name, updated: new Date(updated).toISOString() })) }),
   board_get: async ({ name }) => {
     const b = await findBoard(name);
-    return { name: b.name, plugin: b.data.plugin, cell: b.data.cell, langs: (b.data.langs || []).map((l) => ({ name: l.name, rule: l.rule, bmps: l.bmps, in_use: b.data.lang === l.id })), params: b.data.params.map((q) => ({ ...q, state: statusOf(q), sketch: sketches.get(q.bmp)?.name || null, slot: slotOf(q) })) };
+    return { name: b.name, plugin: b.data.plugin, cell: b.data.cell, model: model(), banners: banners(), langs: (b.data.langs || []).map((l) => ({ name: l.name, rule: l.rule, bmps: l.bmps, in_use: b.data.lang === l.id })), params: b.data.params.map((q) => ({ ...q, state: statusOf(q), sketch: sketches.get(q.bmp)?.name || null, slot: slotOf(q) })) };
   },
   board_new: async ({ manifest, name }, ctx) => {
     const b = await createBoard(manifest, name);
@@ -502,7 +530,7 @@ const agentOps = {
       const c = document.createElement("canvas"); c.width = 128 * s; c.height = 64 * s; paint(c, fbOf(pg, L), s); pngs.push(c.toDataURL("image/png"));
     }
     return { name: b.name, id, layout: L, c: RUI.toC(L, id + "_ui"), cost: RUI.cost(L), warnings: RUI.validate(L), missing, pngs,
-      model: model(), values: pvals(), slots: b.data.params.map((q) => ({ slot: slotOf(q).name, p: q.p, short: q.short, long: q.long, bmp: bmpFor(q, LG) })),
+      model: model(), banners: L.banners || null, keep: (keepTop() ? 2 : 0) | (keepBot() ? 4 : 0), values: pvals(), slots: b.data.params.map((q) => ({ slot: slotOf(q).name, p: q.p, short: q.short, long: q.long, bmp: bmpFor(q, LG) })),
       plugin_order_differs: outOfOrder() };
   },
   // the plugin renumbered its parameters (e.g. swapped two knobs): {map: {old P: new P}}; the board's parameters, every
@@ -525,6 +553,12 @@ const agentOps = {
     const was = model(); b.data.model = m; await saveBoard(); $("pages").innerHTML = ""; renderAll();
     ctx.change(`pages: ${MODELS[m]}`, async () => { B.data.model = was; await saveBoard(); $("pages").innerHTML = ""; renderAll(); });
     return { model: m, slots: b.data.params.map((q) => `${slotOf(q).name} ${q.short}`) };
+  },
+  board_banners: async ({ name, banners: m }, ctx) => {
+    const b = await findBoard(name); if (!(m in BANNERS)) throw new Error(`banners: ${Object.keys(BANNERS).join(", ")}`);
+    const was = banners(); b.data.banners = m; await saveBoard(); $("pages").innerHTML = ""; renderAll();
+    ctx.change(`pages: ${BANNERS[m]}`, async () => { B.data.banners = was; await saveBoard(); $("pages").innerHTML = ""; renderAll(); });
+    return { banners: m, band: { y0: keepTop() ? RUI.BANNER_TOP : 0, y1: keepBot() ? RUI.BANNER_BOTTOM - 1 : 63 }, warnings: RUI.validate(layoutOf(true)) };
   },
   board_select: async ({ name, p }) => { await findBoard(name); if (p != null) select(+p, true); return { ok: true }; },
   board_render: async ({ name, page, values, scale, lang }) => {

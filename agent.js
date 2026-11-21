@@ -25,6 +25,7 @@ body.agent-open > main { margin-right: 340px; }   /* the page makes room: the dr
 #agentDrawer .ait.err { border-left: 3px solid #ff8a8a; }
 #agentDrawer .ait.undone .ab { text-decoration: line-through; opacity: .6; }
 #agentDrawer .ait .aopts { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+#agentDrawer .ait .aopts .btn { white-space: normal; text-align: left; max-width: 100%; height: auto; line-height: 1.35; }   /* long choices wrap inside the panel */
 #agentDrawer .ait .aopts input { flex: 1; min-width: 120px; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 3px 6px; font: inherit; }
 #agentDrawer .ait .apicked { color: #78e68c; margin-top: 4px; }
 #agentDrawer .ait pre { white-space: pre-wrap; margin: 4px 0 0; font-size: 11px; }
@@ -64,7 +65,13 @@ export function startAgent(o) {
   document.body.append(dr);
   const R = (k) => dr.querySelector(`[data-r=${k}]`);
   let live = false, running = 0, paused = false, unseen = 0, focusT = document.hasFocus() || !document.hidden ? Date.now() : 0;   // a page just opened in view counts as the one in use
-  const items = [];
+  // the feed survives a reload of this page (as text: what was undoable before stays visible, without its ↩)
+  const FEED_K = "rmpui-agent-feed:" + location.pathname, items = [];
+  try {
+    for (const o of JSON.parse(sessionStorage.getItem(FEED_K) || "[]")) items.push({ ...o, t: new Date(o.t), old: true,
+      ...(o.ask ? { ask: { answer: o.ask.answer ?? "(not answered before the page reloaded)" } } : {}) });
+  } catch (e) {}
+  const keep = () => { try { sessionStorage.setItem(FEED_K, JSON.stringify(items.slice(-100).map((it) => ({ kind: it.kind, html: it.html, text: it.text, t: it.t, undone: it.undone, n: it.n, read: it.read, ...(it.ask ? { ask: { answer: it.ask.answer ?? null } } : {}) })))); } catch (e) {} };
   let agentInfo = null, lastReply = 0, readAt = 0;   // the agent's status; its last reply; when it read your last note
   const mark = () => {
     btn.classList.toggle("live", live); btn.classList.toggle("busy", running > 0 || thinking()); btn.classList.toggle("paused", paused);
@@ -88,6 +95,7 @@ export function startAgent(o) {
     render(); mark(); return it;
   }
   function render() {
+    keep();
     const box = R("feed"), atEnd = box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
     box.innerHTML = "";
     if (!items.length) box.innerHTML = `<div class="dim" style="padding:8px 0">Nothing yet. An agent drives this page with <code>rmpui/tools/rmpui.py</code> (see rmpui/AGENT.md); what it does shows here, and you can undo any change.</div>`;
@@ -215,6 +223,6 @@ export function startAgent(o) {
       try { await post("/api/result", { id: c.id, result }); } catch (e) {}
     }
   })();
-  mark();
+  render(); mark();
   return { userEdited, busy: () => running > 0, show, add };
 }

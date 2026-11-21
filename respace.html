@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Re-space Pages</title>
+<style>
+:root { --bg: #15171a; --panel: #1d2024; --panel2: #24282d; --line: #33383f; --text: #e6e8eb; --dim: #8b929b; --accent: #5fb3ff; --sel: #ffb35f; --ok: #8fdc9f; --bad: #ff7b7b; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+header { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+header h1 { font-size: 14px; margin: 0 10px 0 0; white-space: nowrap; }
+.sp { flex: 1; }
+.btn { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 5px 10px; font: inherit; cursor: pointer; text-decoration: none; white-space: nowrap; }
+.btn:hover { border-color: var(--accent); }
+.btn.on { border-color: var(--sel); color: var(--sel); background: #2b241b; }
+.btn.primary { background: var(--accent); color: #0b1520; border-color: var(--accent); font-weight: 600; }
+.btn.ok { border-color: #3c6a48; color: var(--ok); }
+.btn:disabled { opacity: .45; cursor: default; }
+select { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; font: inherit; }
+.dim { color: var(--dim); font-size: 12px; }
+main { flex: 1; overflow: auto; padding: 12px 18px 30px; }
+.tabs { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+.stage { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+.oled { background: #000; padding: 10px; border-radius: 8px; box-shadow: inset 0 0 0 2px #0c0c0c, 0 0 0 1px var(--line); }
+.oled canvas { display: block; image-rendering: pixelated; max-width: calc(100vw - 60px); height: auto; touch-action: none; }
+.side { min-width: 260px; max-width: 360px; display: flex; flex-direction: column; gap: 10px; }
+.side h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); margin: 6px 0 2px; }
+.help { color: var(--dim); font-size: 12px; line-height: 1.55; }
+.help b { color: var(--text); font-weight: 600; }
+.warn { color: var(--sel); font-size: 12px; }
+.ref { background: #000; border-radius: 6px; padding: 6px; }
+.ref canvas { display: block; image-rendering: pixelated; width: 100%; height: auto; }
+.empty-state { padding: 40px; max-width: 600px; color: var(--dim); line-height: 1.6; }
+.empty-state b { color: var(--text); }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--dim); margin: 8px 0 0; }
+.legend i { display: inline-block; width: 14px; height: 9px; vertical-align: -1px; margin-right: 4px; }
+/* the agent drawer (agent.js) */
+.drawer { position: fixed; z-index: 30; left: 0; top: 48px; bottom: 0; width: 380px; background: var(--panel); border-right: 1px solid var(--line); overflow: auto; }
+.drawer.right { left: auto; right: 0; border-right: 0; border-left: 1px solid var(--line); width: 340px; }
+.drawer .dh { display: flex; align-items: center; gap: 6px; padding: 10px 12px; }
+.drawer .dh a { color: var(--dim); text-decoration: none; }
+.drawer .dim { color: var(--dim); font-size: 12px; }
+#agentBtn { position: relative; }
+#agentBtn .anew { position: absolute; top: -6px; right: -6px; background: var(--sel); color: #111; border-radius: 8px; font-size: 10px; padding: 0 5px; font-weight: 700; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Re-space pages <span style="color:var(--dim);font-weight:400;font-size:11px">v1</span></h1>
+  <select id="jobSel" title="Your re-space jobs"></select>
+  <button class="btn" id="impBtn" title="Open a re-space job (JSON)">Open job…</button>
+  <input type="file" id="impFile" accept=".json,application/json" hidden>
+  <span class="sp"></span>
+  <button class="btn" id="sweepBtn" title="Turn every knob 0 to 127 and back (the plugin's own drawing at each value)">▶ Sweep</button>
+  <button class="btn" id="undo" title="Undo (⌘Z)">↩ Undo</button>
+  <button class="btn" id="redo" title="Redo (⇧⌘Z)">↪ Redo</button>
+  <button class="btn" id="expBtn" title="Download the placement map (JSON)">Export map</button>
+  <button class="btn" id="apprBtn" title="Mark this map as the one to build">Approve</button>
+  <button class="btn" id="agentBtn" title="The agent link">🤖</button>
+</header>
+<main id="main"></main>
+<script type="module">
+// respace.html - move the pieces of existing 128x64 pages so they fit a smaller band (e.g. between the Rytm's stock
+// banners), and touch up pixels. A job (format "rmpui-respace-job-1", opened from a file or sent by an agent) holds each
+// page's picture and its blocks: "live" ones (value-driven: the plugin redraws them at run time, so they move as a whole
+// rectangle) and "art" (fixed pixels; found automatically, or cut by hand). The result is a placement map
+// ("rmpui-respace-1"): per page, every block's {src: [x, y, w, h], dst: [x, y]}, the removed rects, and set / clear
+// masks (128 x band rows), and the job's row map if it has one ("rows": 64 lists of source rows, OR'd: a vertical
+// scale). The plugin applies it to its own rendered page S:
+//   if rows: S = rows(S) (output row y = the OR of S's rows rows[y]; [] = blank) - the job's pictures are already that
+//   F = S; clear every block's src rect (but a "from": "S" block's) and every removed rect in F;
+//   for each move, in order: copy S[src] to F at dst (every pixel of the rect; "from": "S": the page before rows);
+//   F &= ~clear; F |= set   (masks in band rows: mask row 0 = page row band.y0).
+// The preview here is exactly that. Jobs stay in this browser (library type "respace").
+import * as LIB from "./lib.js";
+import { startAgent } from "./agent.js";
+import { esc } from "./lib-ui.js";
+const $ = (id) => document.getElementById(id);
+const SC = 6, CUR_K = "rmpui-respace-cur";
+let jobs = [], J = null, pg = "1", sel = new Set(), mode = "move", undoS = [], redoS = [];
+
+// ---------- bits
+const hexTo = (h, n) => { const o = new Uint8Array(n); for (let i = 0; i < n && 2 * i < h.length; i++) o[i] = parseInt(h.substr(2 * i, 2), 16); return o; };
+const toHex = (a) => Array.from(a, (v) => v.toString(16).padStart(2, "0")).join("");
+const get = (fb, x, y) => (x < 0 || y < 0 || x > 127 || y > 63 ? 0 : (fb[y * 16 + (x >> 3)] >> (7 - (x & 7))) & 1);
+const put = (fb, x, y, v) => { if (x < 0 || y < 0 || x > 127 || y > 63) return; const m = 0x80 >> (x & 7); if (v) fb[y * 16 + (x >> 3)] |= m; else fb[y * 16 + (x >> 3)] &= ~m; };
+const band = () => J.data.band || { y0: 9, y1: 54 };
+
+// ---------- the job: {name, band: {y0, y1}, pages: {n: {title, fb (hex 1024), blocks: [{id, kind, name, rect, dst, group}],
+// removed: [[x, y, w, h]], set, clear (hex, 128 x 64 here; exported in band rows)}}, approved}
+function findArt(P) {   // the fixed pixels outside live blocks and removed rects, in pieces (letters a word apart join)
+  const S = hexTo(P.fb, 1024), skip = new Uint8Array(128 * 64);
+  for (const r of [...P.blocks.filter((b) => b.from !== "S" && !b.pic).map((b) => b.rect), ...(P.removed || [])]) for (let y = r[1]; y < r[1] + r[3]; y++) for (let x = r[0]; x < r[0] + r[2]; x++) if (x >= 0 && y >= 0 && x < 128 && y < 64) skip[y * 128 + x] = 1;
+  const lab = new Int32Array(128 * 64).fill(-1), out = [];
+  for (let y = 0; y < 64; y++) for (let x = 0; x < 128; x++) {
+    if (!get(S, x, y) || skip[y * 128 + x] || lab[y * 128 + x] >= 0) continue;
+    const id = out.length, st = [[x, y]]; lab[y * 128 + x] = id; let x0 = x, x1 = x, y0 = y, y1 = y;
+    while (st.length) {
+      const [a, b] = st.pop(); x0 = Math.min(x0, a); x1 = Math.max(x1, a); y0 = Math.min(y0, b); y1 = Math.max(y1, b);
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {   // a 1-px gap joins (letter spacing)
+        const u = a + dx, v = b + dy; if (u < 0 || v < 0 || u > 127 || v > 63) continue;
+        const k = v * 128 + u; if (lab[k] >= 0 || skip[k] || !get(S, u, v)) continue; lab[k] = id; st.push([u, v]);
+      }
+    }
+    out.push([x0, y0, x1 - x0 + 1, y1 - y0 + 1]);
+  }
+  return out;
+}
+function prepare(job) {   // a job as sent: fill in art blocks, groups, dst, masks
+  const pages = {};
+  for (const [n, P0] of Object.entries(job.pages || {})) {
+    const P = { title: P0.title || `Page ${n}`, fb: P0.fb, removed: P0.removed || [], blocks: (P0.blocks || []).map((b, i) => ({ id: b.id || `${n}.${b.kind || "live"}${i}`, kind: b.kind || "live", name: b.name || "", rect: b.rect.slice(), dst: (b.dst || b.rect).slice(0, 2), group: b.group || null, ...(b.from ? { from: b.from } : {}), ...(b.pic ? { pic: b.pic, draw: b.draw || null, ...(b.sweepPic ? { sweepPic: b.sweepPic } : {}) } : {}) })) };
+    if (!P.blocks.some((b) => b.kind === "art")) findArt(P).forEach((r, i) => P.blocks.push({ id: `${n}.art${i}`, kind: "art", name: "", rect: r, dst: r.slice(0, 2), group: null }));
+    // a live block inside an art piece's box (a value in its frame) moves with it
+    for (const b of P.blocks) if (b.kind === "live" && !b.group) {
+      const a = P.blocks.find((c) => c.kind === "art" && c.rect[2] * c.rect[3] > b.rect[2] * b.rect[3] && b.rect[0] >= c.rect[0] && b.rect[1] >= c.rect[1] && b.rect[0] + b.rect[2] <= c.rect[0] + c.rect[2] && b.rect[1] + b.rect[3] <= c.rect[1] + c.rect[3]);
+      if (a) { a.group = a.group || a.id; b.group = a.group; }
+    }
+    if (P0.rows) P.rows = P0.rows; if (P0.orig) P.orig = P0.orig; if (P0.sweep) P.sweep = P0.sweep;   // sweep: the page rendered at other knob values
+    P.set = P0.set || toHex(new Uint8Array(1024)); P.clear = P0.clear || toHex(new Uint8Array(1024));
+    pages[n] = P;
+  }
+  return { name: job.name || "pages", band: job.band || { y0: 9, y1: 54 }, pages, approved: false };
+}
+const page = () => J.data.pages[pg];
+function compose(P, withMasks = true) {
+  const S = hexTo(P.fb, 1024), F = S.slice(), O = P.orig ? hexTo(P.orig, 1024) : S;   // O: the page before the row map
+  const clr = (r) => { for (let y = r[1]; y < r[1] + r[3]; y++) for (let x = r[0]; x < r[0] + r[2]; x++) put(F, x, y, 0); };
+  for (const b of P.blocks) if (b.from !== "S" && !b.pic) clr(b.rect);   // a block "from": "S" takes its pixels from the unscaled page
+  for (const r of P.removed) clr(r);
+  for (const b of P.blocks) {
+    const [sx, sy, w, h] = b.rect, [dx, dy] = b.dst;
+    if (b.pic) { const pb = hexTo(b.pic, ((w + 7) >> 3) * h), rb = (w + 7) >> 3; for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) put(F, dx + i, dy + j, (pb[j * rb + (i >> 3)] >> (7 - (i & 7))) & 1); continue; }
+    const src = b.from === "S" ? O : S; for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) put(F, dx + i, dy + j, get(src, sx + i, sy + j));
+  }
+  if (withMasks) { const st = hexTo(P.set, 1024), cl = hexTo(P.clear, 1024); for (let i = 0; i < 1024; i++) F[i] = (F[i] & ~cl[i]) | st[i]; }
+  return F;
+}
+function warnings(P) {
+  const { y0, y1 } = band(), w = [];
+  for (const b of P.blocks) {
+    if (b.pic) { if (b.dst[1] < y0 || b.dst[1] + b.rect[3] - 1 > y1) w.push(`“${b.name}” at ${b.dst[0]},${b.dst[1]} reaches under a banner`); continue; }
+    const S = hexTo(b.from === "S" && P.orig ? P.orig : P.fb, 1024); let lit = false;   // only a block with lit pixels outside the band matters
+    for (let j = 0; j < b.rect[3] && !lit; j++) for (let i = 0; i < b.rect[2]; i++) if (get(S, b.rect[0] + i, b.rect[1] + j) && (b.dst[1] + j < y0 || b.dst[1] + j > y1)) { lit = true; break; }
+    if (lit) w.push(`${b.kind === "live" ? `live “${b.name}”` : "a piece"} at ${b.dst[0]},${b.dst[1]} reaches under a banner`);
+  }
+  return w;
+}
+function mapOf() {   // the placement map
+  const { y0, y1 } = band(), rows = y1 - y0 + 1, pages = {};
+  for (const [n, P] of Object.entries(J.data.pages)) {
+    const cut = (h) => toHex(hexTo(h, 1024).slice(y0 * 16, (y1 + 1) * 16));
+    pages[n] = { ...(P.rows ? { rows: P.rows } : {}), moves: P.blocks.filter((b) => !b.pic).map((b) => ({ id: b.id, kind: b.kind, name: b.name, src: b.rect, dst: b.dst, ...(b.from ? { from: b.from } : {}) })),
+      draw: P.blocks.filter((b) => b.pic).map((b) => ({ id: b.id, name: b.name, at: b.dst, size: b.rect.slice(2), ...(b.draw || {}) })), removed: P.removed, set: cut(P.set), clear: cut(P.clear), warnings: warnings(P) };
+  }
+  return { format: "rmpui-respace-1", name: J.data.name, band: { y0, y1, rows, mask: "128 x rows, 16 bytes a row, MSB = leftmost; mask row 0 = page row y0" }, approved: !!J.data.approved, pages,
+    apply: "if rows: S = rows(S) (row y = OR of S rows rows[y]); F = S; clear each src (not from:S) and removed rect; copy S[src] (from:S: the page before rows) to dst for each move in order (whole rect); then each draw: the plugin's own code draws that item in the box at / size; F &= ~clear; F |= set" };
+}
+
+// ---------- library
+async function loadJobs() { jobs = await LIB.list("respace"); }
+async function save() { if (!J) return; J = await LIB.put({ ...J }); }
+let saveTm = 0; const later = () => { clearTimeout(saveTm); saveTm = setTimeout(save, 300); };
+async function openJob(id) { const a = await LIB.get(id); if (!a) return; J = a; pg = Object.keys(J.data.pages)[0]; sel.clear(); undoS = []; redoS = []; try { localStorage.setItem(CUR_K, id); } catch (e) {} render(); }
+async function addJob(job) {
+  const data = prepare(job), old = jobs.find((j) => j.name === data.name);
+  const a = await LIB.put({ ...(old ? await LIB.get(old.id) : { id: LIB.newId(), type: "respace", name: data.name, tags: [] }), data });
+  await loadJobs(); await openJob(a.id); return a;
+}
+const snap = () => JSON.stringify(J.data.pages);
+function edit(fn) { undoS.push(snap()); if (undoS.length > 200) undoS.shift(); redoS = []; fn(); J.data.approved = false; later(); render(); }
+function undo() { if (!undoS.length) return; redoS.push(snap()); J.data.pages = JSON.parse(undoS.pop()); J.data.approved = false; later(); render(); }
+function redo() { if (!redoS.length) return; undoS.push(snap()); J.data.pages = JSON.parse(redoS.pop()); later(); render(); }
+
+// ---------- drawing
+function render() {
+  $("jobSel").innerHTML = jobs.length ? jobs.map((j) => `<option value="${j.id}">${esc(j.name)}</option>`).join("") : `<option value="">No jobs yet</option>`;
+  if (J) $("jobSel").value = J.id;
+  for (const b of ["undo", "redo", "expBtn", "apprBtn"]) $(b).disabled = !J;
+  if (!J) { $("main").innerHTML = `<div class="empty-state"><b>Re-space existing pages.</b> Open a job (a JSON your agent makes from the plugin's current pages): every piece of each page becomes a block you can drag into the band between the Rytm's banners, and you can touch up pixels. Export the placement map when it looks right, or Approve it for your agent.</div>`; return; }
+  $("apprBtn").textContent = J.data.approved ? "✓ Approved" : "Approve"; $("apprBtn").className = "btn" + (J.data.approved ? " ok" : "");
+  const P = page(), { y0, y1 } = band();
+  if (!$("cv")) {
+    $("main").innerHTML = `<div class="tabs" id="tabs"></div>
+      <div class="stage"><div class="oled"><canvas id="cv" width="${128 * SC}" height="${64 * SC}"></canvas></div>
+      <div class="side">
+        <div class="tabs"><button class="btn" data-mode="move">✥ Move</button><button class="btn" data-mode="cut" title="Drag a box round some fixed pixels: they become a block of their own">✂ Cut a block</button><button class="btn" data-mode="pen" title="Click or drag: turn pixels on / off">✎ Pixels</button></div>
+        <div class="help" id="help"></div>
+        <div class="legend"><span><i style="border:1px solid #5fc8ff"></i>live (follows its knob)</span><span><i style="border:1px dashed #6a7480"></i>fixed</span><span><i style="border:2px solid var(--sel)"></i>selected</span><span><i style="background:#3c4046"></i>banner</span><span><i style="background:repeating-linear-gradient(45deg,#5a2a2a 0 2px,#000 2px 4px)"></i>removed</span></div>
+        <div id="warns"></div>
+        <h2>Before</h2><div class="ref"><canvas id="ref" width="256" height="128"></canvas></div>
+        <div class="dim" id="selinfo"></div>
+      </div></div>`;
+    hook();
+  }
+  $("tabs").innerHTML = Object.entries(J.data.pages).map(([n, p]) => `<button class="btn${n === pg ? " on" : ""}" data-pg="${n}">${esc(p.title)}</button>`).join("") + `<span class="dim" style="margin-left:8px">band rows ${y0}..${y1}</span>`;
+  document.querySelectorAll("[data-mode]").forEach((b) => b.classList.toggle("on", b.dataset.mode === mode));
+  $("help").innerHTML = { move: "<b>Click</b> a block to pick it (its frame and value move together; <b>⌥-click</b> just that one, <b>⇧-click</b> to add). <b>Drag</b> to move, <b>arrow keys</b> 1 px (⇧ 4 px). Drag on empty space to pick several.",
+    cut: "<b>Drag a box</b> round fixed pixels to make them a block of their own (to move part of a piece).", pen: "<b>Click or drag</b> to turn pixels on or off (it starts with the opposite of the first pixel). Touch-ups are kept apart from the moves." }[mode];
+  const F = compose(swept(P)), c = $("cv"), x = c.getContext("2d");
+  x.fillStyle = "#000"; x.fillRect(0, 0, c.width, c.height);
+  x.fillStyle = "#3c4046"; x.fillRect(0, 0, 128 * SC, y0 * SC); x.fillRect(0, (y1 + 1) * SC, 128 * SC, (63 - y1) * SC);
+  x.fillStyle = "#5a2a2a"; for (const r of P.removed) for (let j = r[1]; j < r[1] + r[3]; j++) for (let i = r[0]; i < r[0] + r[2]; i++) if ((i + j) % 3 === 0) x.fillRect(i * SC, j * SC, SC, SC);
+  for (let j = 0; j < 64; j++) for (let i = 0; i < 128; i++) if (get(F, i, j)) { x.fillStyle = j < y0 || j > y1 ? "#8a929c" : "#dfeeff"; x.fillRect(i * SC, j * SC, SC, SC); }
+  for (const b of P.blocks) {
+    const s = sel.has(b.id); x.save(); x.lineWidth = s ? 2 : 1; x.strokeStyle = s ? "#ffb35f" : b.kind === "live" ? "#5fc8ff" : "#6a7480"; if (!s && b.kind !== "live") x.setLineDash([3, 3]);
+    x.strokeRect(b.dst[0] * SC + 0.5, b.dst[1] * SC + 0.5, b.rect[2] * SC - 1, b.rect[3] * SC - 1); x.restore();
+  }
+  if (drag && drag.box) { x.save(); x.strokeStyle = "#ffb35f"; x.setLineDash([4, 3]); const [a, b2, w, h] = drag.box; x.strokeRect(a * SC, b2 * SC, w * SC, h * SC); x.restore(); }
+  const r = $("ref"), rx = r.getContext("2d"), S = hexTo(P.orig || P.fb, 1024); rx.fillStyle = "#000"; rx.fillRect(0, 0, 256, 128); rx.fillStyle = "#dfeeff";
+  for (let j = 0; j < 64; j++) for (let i = 0; i < 128; i++) if (get(S, i, j)) rx.fillRect(i * 2, j * 2, 2, 2);
+  $("warns").innerHTML = warnings(P).slice(0, 8).map((w) => `<div class="warn">⚠ ${esc(w)}</div>`).join("");
+  const bs = P.blocks.filter((b) => sel.has(b.id));
+  $("selinfo").textContent = bs.length ? bs.map((b) => `${b.kind === "live" ? b.name || "live" : "piece"} ${b.rect[2]}×${b.rect[3]} at ${b.dst[0]},${b.dst[1]}${b.dst[0] !== b.rect[0] || b.dst[1] !== b.rect[1] ? ` (was ${b.rect[0]},${b.rect[1]})` : ""}`).join(" · ") : "";
+}
+
+// ---------- the sweep: the page (and code-drawn items) at frame i of the job's sweep
+let sweepI = -1, sweepTm = 0;
+function swept(P) {
+  if (sweepI < 0 || !P.sweep) return P;
+  const i = sweepI % P.sweep.length;
+  return { ...P, fb: P.sweep[i], blocks: P.blocks.map((b) => (b.sweepPic ? { ...b, pic: b.sweepPic[i % b.sweepPic.length] } : b)) };
+}
+$("sweepBtn").onclick = () => {
+  if (sweepTm) { clearInterval(sweepTm); sweepTm = 0; sweepI = -1; $("sweepBtn").textContent = "▶ Sweep"; render(); return; }
+  if (!J || !page().sweep) { $("sweepBtn").textContent = "no sweep in this job"; setTimeout(() => ($("sweepBtn").textContent = "▶ Sweep"), 1500); return; }
+  sweepI = 0; $("sweepBtn").textContent = "■ Stop"; sweepTm = setInterval(() => { sweepI++; render(); }, 140);
+};
+
+// ---------- editing
+let drag = null;
+const at = (e) => { const r = $("cv").getBoundingClientRect(); return [Math.floor(((e.clientX - r.left) / r.width) * 128), Math.floor(((e.clientY - r.top) / r.height) * 64)]; };
+const hit = (P, x, y) => { const live = P.blocks.filter((b) => x >= b.dst[0] && y >= b.dst[1] && x < b.dst[0] + b.rect[2] && y < b.dst[1] + b.rect[3]);
+  return live.sort((a, b) => a.rect[2] * a.rect[3] - b.rect[2] * b.rect[3])[0] || null; };   // the smallest under the pointer
+const groupOf = (P, b) => (b.group ? P.blocks.filter((c) => c.group === b.group) : [b]);
+function hook() {
+  const c = $("cv");
+  c.onpointerdown = (e) => {
+    c.setPointerCapture(e.pointerId); const P = page(), [x, y] = at(e);
+    if (mode === "pen") {
+      undoS.push(snap()); redoS = [];
+      const v = get(compose(P), x, y) ? 0 : 1; drag = { pen: v }; pen(P, x, y, v); return;
+    }
+    if (mode === "cut") { drag = { x0: x, y0: y, box: [x, y, 1, 1], cut: true }; render(); return; }
+    const b = hit(P, x, y);
+    if (!b) { if (!e.shiftKey) sel.clear(); drag = { x0: x, y0: y, box: [x, y, 1, 1] }; render(); return; }
+    const g = e.altKey ? [b] : groupOf(P, b);
+    if (e.shiftKey) g.forEach((k) => (sel.has(b.id) ? sel.delete(k.id) : sel.add(k.id))); else if (!sel.has(b.id)) { sel = new Set(g.map((k) => k.id)); }
+    drag = { x0: x, y0: y, moved: false, start: snap(), orig: new Map(P.blocks.filter((k) => sel.has(k.id)).map((k) => [k.id, k.dst.slice()])) };
+    render();
+  };
+  c.onpointermove = (e) => {
+    if (!drag) return; const P = page(), [x, y] = at(e);
+    if (drag.pen !== undefined) { pen(P, x, y, drag.pen); return; }
+    if (drag.box) { const a = Math.min(drag.x0, x), b = Math.min(drag.y0, y); drag.box = [a, b, Math.abs(x - drag.x0) + 1, Math.abs(y - drag.y0) + 1]; render(); return; }
+    const dx = x - drag.x0, dy = y - drag.y0; if (!dx && !dy && !drag.moved) return;
+    drag.moved = true; for (const k of P.blocks) if (drag.orig.has(k.id)) { const o = drag.orig.get(k.id); k.dst = [o[0] + dx, o[1] + dy]; }
+    render();
+  };
+  c.onpointerup = () => {
+    if (!drag) return; const P = page(), d = drag; drag = null;
+    if (d.pen !== undefined) { J.data.approved = false; later(); render(); return; }
+    if (d.cut && d.box) { cut(P, d.box); return; }
+    if (d.box) { const [a, b, w, h] = d.box; P.blocks.forEach((k) => { if (k.dst[0] < a + w && k.dst[0] + k.rect[2] > a && k.dst[1] < b + h && k.dst[1] + k.rect[3] > b) sel.add(k.id); }); render(); return; }
+    if (d.moved) { undoS.push(d.start); redoS = []; J.data.approved = false; later(); }
+    render();
+  };
+  document.querySelectorAll("[data-mode]").forEach((b) => (b.onclick = () => { mode = b.dataset.mode; render(); }));
+  $("tabs").onclick = (e) => { const t = e.target.closest("[data-pg]"); if (t) { pg = t.dataset.pg; sel.clear(); render(); } };
+}
+function pen(P, x, y, v) {   // a touch-up: set or clear one pixel (in the band)
+  const { y0, y1 } = band(); if (y < y0 || y > y1 || x < 0 || x > 127) return;
+  const st = hexTo(P.set, 1024), cl = hexTo(P.clear, 1024), base = get(compose(P, false), x, y);
+  put(st, x, y, v && !base); put(cl, x, y, !v && base);
+  P.set = toHex(st); P.clear = toHex(cl); render();
+}
+function cut(P, box) {   // fixed pixels inside the box (not moved yet) become a block of their own
+  const [a, b, w, h] = box, S = hexTo(P.fb, 1024);
+  const pieces = P.blocks.filter((k) => k.kind === "art" && k.dst[0] === k.rect[0] && k.dst[1] === k.rect[1] && k.rect[0] < a + w && k.rect[0] + k.rect[2] > a && k.rect[1] < b + h && k.rect[1] + k.rect[3] > b);
+  if (!pieces.length) { render(); return; }
+  edit(() => {
+    for (const k of pieces) {   // the piece keeps what is outside the box (as up to 4 strips), the box becomes its own
+      const r = k.rect, ix0 = Math.max(a, r[0]), iy0 = Math.max(b, r[1]), ix1 = Math.min(a + w, r[0] + r[2]), iy1 = Math.min(b + h, r[1] + r[3]);
+      const rest = [[r[0], r[1], r[2], iy0 - r[1]], [r[0], iy1, r[2], r[1] + r[3] - iy1], [r[0], iy0, ix0 - r[0], iy1 - iy0], [ix1, iy0, r[0] + r[2] - ix1, iy1 - iy0]].filter((q) => q[2] > 0 && q[3] > 0);
+      P.blocks.splice(P.blocks.indexOf(k), 1);
+      const lit = (q) => { for (let j = 0; j < q[3]; j++) for (let i = 0; i < q[2]; i++) if (get(S, q[0] + i, q[1] + j)) return true; return false; };
+      rest.filter(lit).forEach((q, i) => P.blocks.push({ id: `${k.id}.${i}`, kind: "art", name: "", rect: q, dst: q.slice(0, 2), group: k.group }));
+      const q = [ix0, iy0, ix1 - ix0, iy1 - iy0]; if (lit(q)) { const nb = { id: `${k.id}.c${Date.now() % 1e6}`, kind: "art", name: "", rect: q, dst: q.slice(0, 2), group: null }; P.blocks.push(nb); sel = new Set([nb.id]); }
+    }
+    mode = "move";
+  });
+}
+document.addEventListener("keydown", (e) => {
+  if (!J || e.target.closest("textarea, input")) return;
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+  if (!d || !sel.size) return; e.preventDefault(); const k = e.shiftKey ? 4 : 1;
+  edit(() => { for (const b of page().blocks) if (sel.has(b.id)) b.dst = [b.dst[0] + d[0] * k, b.dst[1] + d[1] * k]; });
+});
+$("undo").onclick = undo; $("redo").onclick = redo;
+$("jobSel").onchange = () => openJob($("jobSel").value);
+$("impBtn").onclick = () => $("impFile").click();
+$("impFile").onchange = async () => { const f = $("impFile").files[0]; $("impFile").value = ""; if (!f) return; try { await addJob(JSON.parse(await f.text())); } catch (err) { alert("Not a re-space job: " + err.message); } };
+$("expBtn").onclick = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(mapOf(), null, 1)], { type: "application/json" })); a.download = `${J.data.name.replace(/[^a-z0-9]+/gi, "_")}_respace.json`; a.click(); };
+$("apprBtn").onclick = async () => { J.data.approved = !J.data.approved; await save(); render(); AG.userEdited({ type: "respace", name: J.name }); };
+
+// ---------- the agent (tools/rmpui.py respace-*)
+const AG = startAgent({ button: $("agentBtn"), ops: {
+  respace_load: async ({ job }, ctx) => { const a = await addJob(job); ctx.change(`opened re-space job “${a.name}”`, null); const P = J.data.pages; return { name: a.name, pages: Object.fromEntries(Object.entries(P).map(([n, p]) => [n, { title: p.title, live: p.blocks.filter((b) => b.kind === "live").length, pieces: p.blocks.filter((b) => b.kind === "art").length }])) }; },
+  respace_get: async ({ name }) => { if (name) { const j = jobs.find((x) => x.name === name); if (!j) throw new Error(`no job “${name}”`); if (!J || J.id !== j.id) await openJob(j.id); } if (!J) throw new Error("no job is open"); return mapOf(); },
+  respace_move: async ({ page: n, moves, note }, ctx) => {   // [{id, dst: [x, y]} or {id, by: [dx, dy]}]
+    if (!J) throw new Error("no job is open"); const P = J.data.pages[String(n || pg)]; if (!P) throw new Error(`no page ${n}`);
+    const before = snap(), miss = (moves || []).filter((m) => !P.blocks.some((b) => b.id === m.id)).map((m) => m.id);
+    if (miss.length) throw new Error("no blocks: " + miss.join(", "));
+    edit(() => { for (const m of moves) { const b = P.blocks.find((k) => k.id === m.id); b.dst = m.dst ? m.dst.slice(0, 2) : [b.dst[0] + (m.by?.[0] || 0), b.dst[1] + (m.by?.[1] || 0)]; } });
+    ctx.change(`${P.title}: moved ${moves.length} block${moves.length === 1 ? "" : "s"}${note ? ": " + note : ""}`, async () => { J.data.pages = JSON.parse(before); await save(); render(); });
+    return { warnings: warnings(P) };
+  },
+  respace_blocks: async ({ page: n }) => { if (!J) throw new Error("no job is open"); const P = J.data.pages[String(n || pg)]; return P.blocks.map(({ id, kind, name, rect, dst, group }) => ({ id, kind, name, rect, dst, group })); },
+  respace_render: async ({ page: n }) => {
+    if (!J) throw new Error("no job is open"); const P = J.data.pages[String(n || pg)]; if (!P) throw new Error(`no page ${n}`);
+    const F = compose(P), rows = []; for (let y = 0; y < 64; y++) { let s = ""; for (let x = 0; x < 128; x++) s += get(F, x, y) ? "#" : "."; rows.push(s); }
+    return { ascii: rows.join("\n"), warnings: warnings(P) };
+  },
+} });
+
+await loadJobs();
+let start = null; try { start = localStorage.getItem(CUR_K); } catch (e) {}
+const first = jobs.find((j) => j.id === start) || jobs[0];
+if (first) await openJob(first.id); else render();
+LIB.onChange(async (m) => { if (m.type === "respace") { await loadJobs(); render(); } });
+</script>
+</body>
+</html>

@@ -25,8 +25,12 @@ as you make it, in its 🤖 Agent panel with a ↩ to undo it; the user can edit
   rmpui.py board-order 2,1,3,... [--board NAME]     the parameters' slot order (the plugin's knob order must match)
   rmpui.py board-renumber 1:2,2:1 [--board NAME]   the plugin renumbered parameters (old:new); languages follow
   rmpui.py board-model machine|sendfx [--board NAME]   page model: a machine's SRC/SMPL pages, or an effect's SEND FX pages
+  rmpui.py board-banners none|both|top|bottom [--board NAME]   banner mode: keep the Rytm's stock top / bottom banner
   rmpui.py board-use LANGUAGE [--board NAME]        make a design language the working set
   rmpui.py board-export DIR [--board NAME] [--lang LANGUAGE]   layout.json (bitmaps embedded), <plugin>_ui.h, page PNGs, values.json, slots.json
+  rmpui.py respace-load JOB.json                    respace.html: open a re-space job (pages + their blocks) for the user
+  rmpui.py respace-get [--name NAME] [-o FILE]      the placement map (moves, removed, set / clear masks, approved)
+  rmpui.py respace-render [--page N]                the re-spaced page as ASCII, with its warnings
   rmpui.py say TEXT                                 a message in the user's Agent panel
   rmpui.py ask TEXT [--options a,b,c] [--input] [--timeout 900]   wait for the user's answer
   rmpui.py inbox [--wait SECONDS]                   the user's notes and edits since you last looked
@@ -98,10 +102,14 @@ def main():
     p = sp.add_parser("board-lang"); p.add_argument("file"); p.add_argument("--board")
     p = sp.add_parser("board-renumber"); p.add_argument("map"); p.add_argument("--board")
     p = sp.add_parser("board-model"); p.add_argument("model", choices=["machine", "sendfx"]); p.add_argument("--board")
+    p = sp.add_parser("board-banners"); p.add_argument("banners", choices=["none", "both", "top", "bottom"]); p.add_argument("--board")
     p = sp.add_parser("board-use"); p.add_argument("lang"); p.add_argument("--board")
     p = sp.add_parser("board-export"); p.add_argument("dir"); p.add_argument("--board"); p.add_argument("--lang")
     p = sp.add_parser("board-order"); p.add_argument("order"); p.add_argument("--board")
     p = sp.add_parser("board-view"); p.add_argument("view", nargs="?", default="work"); p.add_argument("--board")
+    p = sp.add_parser("respace-load"); p.add_argument("file")
+    p = sp.add_parser("respace-get"); p.add_argument("--name"); p.add_argument("-o")
+    p = sp.add_parser("respace-render"); p.add_argument("--page", type=int)
     p = sp.add_parser("say"); p.add_argument("text")
     p = sp.add_parser("ask"); p.add_argument("text"); p.add_argument("--options"); p.add_argument("--input", action="store_true")
     p.add_argument("--timeout", type=float, default=900)
@@ -157,6 +165,8 @@ def main():
         out(cmd("board_renumber", name=a.board, map={int(o): int(n) for o, n in (kv.split(":") for kv in a.map.split(","))}))
     elif a.c == "board-model":
         out(cmd("board_model", name=a.board, model=a.model))
+    elif a.c == "board-banners":
+        out(cmd("board_banners", name=a.board, banners=a.banners))
     elif a.c == "board-use":
         out(cmd("board_use_lang", name=a.board, lang=a.lang))
     elif a.c == "board-export":
@@ -164,7 +174,7 @@ def main():
         os.makedirs(a.dir, exist_ok=True)
         files = {"layout.json": json.dumps(r["layout"], indent=1) + "\n", f"{r['id']}_ui.h": r["c"],
                  "values.json": json.dumps({"p": r["values"], "note": "P1..P32 (0..127) the page PNGs were drawn at"}) + "\n",
-                 "slots.json": json.dumps({"board": r["name"], "model": r["model"], "plugin_order_differs": r["plugin_order_differs"], "slots": r["slots"],
+                 "slots.json": json.dumps({"board": r["name"], "model": r["model"], "banners": r.get("banners"), "keep": r.get("keep", 0), "plugin_order_differs": r["plugin_order_differs"], "slots": r["slots"],
                                            "cost": r["cost"], "warnings": r["warnings"], "missing": r["missing"]}, indent=1) + "\n"}
         for k, v in files.items():
             open(os.path.join(a.dir, k), "w").write(v)
@@ -177,6 +187,13 @@ def main():
         out(cmd("board_order", name=a.board, order=[int(v) for v in a.order.split(",")]))
     elif a.c == "board-view":
         out(cmd("board_view", name=a.board, view=a.view))
+    elif a.c == "respace-load":
+        out(cmd("respace_load", job=json.load(open(a.file))))
+    elif a.c == "respace-get":
+        out(cmd("respace_get", name=a.name), a.o)
+    elif a.c == "respace-render":
+        r = cmd("respace_render", page=a.page)
+        print(r["ascii"]); [print("warning:", w) for w in r["warnings"]]
     elif a.c == "say":
         cmd("say", text=a.text)
     elif a.c == "ask":

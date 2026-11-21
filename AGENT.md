@@ -141,6 +141,15 @@ A parameter's suggested export name is `<plugin>_<short>` (e.g. `verb_pdly`); `n
 `export_name` to match, or `board-set --bmp` to whatever it exports. States: empty (no sketch), draft, done (the
 user marks done). Graphics should fit 28×18 to sit in a slot (24×15 leaves room around it).
 
+**Banner mode** (`board-banners both|top|bottom|none`, or the board's banner menu): the plugin keeps the Rytm's stock
+top banner (rows 0..8: page title, pattern, tempo) and/or bottom banner (rows 55..63: name, level bar, position) and
+draws only the band between, on every page it draws. With the top banner kept the board drops its own title line;
+with the bottom one the slots pack into rows 9..54 (graphics up to 32×16, labels under them; the bottom banner shows
+no knob names, so keep the labels). The preview greys the banners, `validate` flags anything under them, and the
+export carries `"banners"` in the layout and a `<NAME>_KEEP` define in the C header: the plugin's draw returns
+`r | <NAME>_KEEP` when the host sets `RMP_DRAW_BANNERS` in flags (`r` from `rmpui_draw`, if nonzero), plain `r`
+otherwise.
+
 ## Design rules for the Rytm
 
 - 1 bit, 128×64, seen at arm's length on a small OLED: thick enough (no lone 1-px details that flicker between
